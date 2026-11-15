@@ -1,6 +1,16 @@
-# shorts-studio
+# shorts-studio — AI Video Editing Pipeline for DaVinci Resolve
 
-Pipeline **tutto gratis** per Shorts e video essay: OpenCode + DaVinci Resolve (free) + ffmpeg + Whisper locale.
+**AI-powered video editing** for Shorts & video essays: OpenCode + DaVinci Resolve (Free/Studio 21.1.1) + ffmpeg + Whisper local.
+
+Transform voiceover or talking-head footage (Italian/English) into a **fully editable DaVinci Resolve timeline** with animated placeholders, captions, transitions, SFX, BGM — all via Lua Console script. You replace placeholders with your media; the edit stays.
+
+![GitHub Repo stars](https://img.shields.io/github/stars/marcoporz/shorts-studio?style=social)
+![GitHub license](https://img.shields.io/github/license/marcoporz/shorts-studio)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![DaVinci Resolve](https://img.shields.io/badge/DaVinci%20Resolve-Free%20%7C%20Studio%2021.1.1-orange)
+![No cloud](https://img.shields.io/badge/No%20cloud-%E2%9C%85-brightgreen)
+
+**Keywords:** AI video editing, AI editing, video automation, DaVinci Resolve scripting, Shorts creator, talking-head editor, local-first, Whisper transcription, Lua scripting
 
 L'AI ascolta il voiceover **oppure il tuo talking head** (italiano o inglese), toglie errori e pause,
 progetta il montaggio, costruisce in Resolve una timeline di **segnaposto gia animati** con marker che
