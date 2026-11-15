@@ -861,20 +861,28 @@ def cmd_render_audio(args: argparse.Namespace) -> int:
     else:
         filter_lines.append("%sconcat=n=%d:v=0:a=1[out];" % ("".join(concat_inputs), len(segments)))
 
+    # Micro-fade 5ms su voce per evitare click ai bordi
+    clean_dur = cuts["stats"]["cleaned"]
+    fade_filter = f"afade=t=in:st=0:d=0.005,afade=t=out:st={clean_dur-0.005}:d=0.005"
+    if with_video:
+        filter_lines.append("[outa]%s[outa_faded];" % fade_filter)
+    else:
+        filter_lines.append("[out]%s[out_faded];" % fade_filter)
+
     filter_complex = "\n".join(filter_lines)
     (bdir / "cuts.ffscript").write_text(filter_complex, encoding="utf-8")
 
     if with_video:
         out = bdir / "vo_clean.mp4"
         cmd = ["ffmpeg", "-y", "-i", str(src), "-filter_complex", filter_complex,
-               "-map", "[outv]", "-map", "[outa]",
+               "-map", "[outv]", "-map", "[outa_faded]",
                "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
                "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-ac", "2",
                "-movflags", "+faststart", str(out)]
     else:
         out = bdir / "vo_clean.wav"
         cmd = ["ffmpeg", "-y", "-i", str(src), "-filter_complex", filter_complex,
-               "-map", "[out]", "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2", str(out)]
+               "-map", "[out_faded]", "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2", str(out)]
     run(cmd)
 
     if with_video:
