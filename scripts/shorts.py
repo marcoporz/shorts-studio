@@ -2799,6 +2799,7 @@ def cmd_lua(args: argparse.Namespace) -> int:
             "opacity": round(opacity, 2),
             "blend": blend,
             "color": color,
+            "animation": slot.get("animation", "static"),
             "markerTitle": "%s %s - %s" % (
                 sid, "A-ROLL" if is_face else kind.upper(), str(slot.get("intent") or "")[:48]),
             "markerNote": "\n".join(marker_note_parts),
