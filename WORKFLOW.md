@@ -1,156 +1,151 @@
-# Workflow completo
+# Complete Workflow
 
-Questo e il flusso operativo. Le fasi 2-7 le prepara l'AI/CLI (OpenCode). Le fasi 8-11 le fai tu
-in Resolve: sostituisci gli slot, rifinisci audio/colore, esporti. La fase 12 (QC) torna all'AI.
+This is the operational flow. Phases 2–7 are prepared by AI/CLI (OpenCode). Phases 8–11 you do in Resolve: replace slots, refine audio/color, export. Phase 12 (QC) goes back to AI.
 
 ```text
- voiceover o video con la faccia + media
-        |
-        v
- [1] scan          media/index.json
-        |
-        v
- [2] transcribe    transcript.json / .txt / .srt
-        |
-        v
- [3] roughcut      cuts.json + review.md      (silenzi, riempitivi, ripetizioni)
-        |
-        v
- [4] render-audio  vo_clean.wav + vo_clean.txt + words.json
-        |          (--video: vo_clean.mp4 con la faccia tagliata)
-        v
- [5] shotlist      projects/<slug>/shotlist.json    <-- la regia, slot per slot
-        |
-        v
- [6] validate + placeholders                        <-- segnaposto + A-roll + caption + transizioni
-        |
-        v
- [7] lua           build/<slug>/<slug>_build.lua
-        |
-        v
- [8] RESOLVE       timeline + marker + caption + transizioni + SFX + BGM
-        |
-        v
- [9] tu            sostituisci solo i segnaposto, rifinisci, esporti
+  voiceover or video with face + media
+         |
+         v
+  [1] scan          media/index.json
+         |
+         v
+  [2] transcribe    transcript.json / .txt / .srt
+         |
+         v
+  [3] roughcut      cuts.json + review.md      (silence, fillers, repetitions)
+         |
+         v
+  [4] render-audio  vo_clean.wav + vo_clean.txt + words.json
+         |          (--video: vo_clean.mp4 with face cut)
+         v
+  [5] shotlist      projects/<slug>/shotlist.json    <-- the direction, slot by slot
+         |
+         v
+  [6] validate + placeholders                        <-- placeholders + A-roll + captions + transitions
+         |
+         v
+  [7] lua           build/<slug>/<slug>_build.lua
+         |
+         v
+  [8] RESOLVE       timeline + markers + captions + transitions + SFX + BGM
+         |
+         v
+  [9] you           replace only placeholders, refine, export
 ```
 
 ---
 
-## Fase 1 — Materiali
+## Phase 1 — Materials
 
-### Cartelle
+### Folders
 
-| Cartella | Cosa mettere | Formato |
+| Folder | What to put | Format |
 |---|---|---|
-| `media/clips/<gioco>/` | gameplay registrato da te | mp4/mov, 1080p+ |
-| `media/images/` | artwork, foto, frame estratti | png/jpg |
-| `media/logos/` | logo del canale, loghi giochi | png con alpha |
-| `media/screenshots/` | screenshot di siti e app | png |
-| `media/voiceover/raw/` | la registrazione della voce, anche in video (talking head) | wav 48kHz (meglio) o mp4/mov |
-| `media/sfx/` | effetti con nomi fissi | wav 48kHz |
-| `media/bgm/` | musica | mp3/wav |
+| `media/clips/<game>/` | your recorded gameplay | mp4/mov, 1080p+ |
+| `media/images/` | artwork, photos, extracted frames | png/jpg |
+| `media/logos/` | channel logos, game logos | png with alpha |
+| `media/screenshots/` | website/app screenshots | png |
+| `media/voiceover/raw/` | voice recording, also on video (talking head) | wav 48kHz (best) or mp4/mov |
+| `media/sfx/` | sound effects with fixed names | wav 48kHz |
+| `media/bgm/` | background music | mp3/wav |
 
-### Nomi dei file
+### File Naming
 
-Il nome del file e un'informazione che l'AI usa per capire cosa stai dando:
+The filename is information the AI uses to understand what you're providing:
 
 ```text
-fallout3-vault101-uscita.mp4
-fallout3-downtown-dc-panoramica.mp4
-newvegas-dialogo-sunny.mp4
-spacehey-profilo-2005.png
-spacehey-musica-player.png
-logo-canale.png
+fallout3-vault101-exit.mp4
+fallout3-downtown-dc-panoramic.mp4
+newvegas-dialogue-sunny.mp4
+spacehey-profile-2005.png
+spacehey-music-player.png
+channel-logo.png
 logo-newvegas.png
 ```
 
-Regola: `<progetto>-<contenuto>-<dettaglio>`. Niente `IMG_4821.MOV`.
+Rule: `<project>-<content>-<detail>`. No `IMG_4821.MOV`.
 
 ### Copyright
 
-L'AI non scarica niente. Tu puoi usare:
+The AI downloads nothing. You can use:
 
-- gameplay registrato da te;
-- screenshot che fai tu;
-- trailer e press kit ufficiali (con giudizio);
-- asset con licenza compatibile (Wikimedia, CC0), citando la fonte.
+- your recorded gameplay;
+- your own screenshots;
+- official trailers and press kits (with judgment);
+- assets with compatible license (Wikimedia, CC0), citing source.
 
-Non usare clip di altri youtuber, montaggi di terzi, musica non licenziata.
-Il campo `suggest` dello shotlist ti dice sempre cosa manca: se inizia con `?`, quello non e nel tuo archivio.
+Don't use other youtubers' clips, third-party edits, unlicensed music.
+The `suggest` field in shotlist always tells you what's missing: if it starts with `?`, it's not in your library.
 
 ---
 
-## Fase 2 — Trascrizione
+## Phase 2 — Transcription
 
 ```bash
 .venv/bin/python scripts/shorts.py transcribe <slug> --language auto
 ```
 
-Funziona con voiceover **italiano e inglese**. `--language auto` (default) fa rilevare la lingua a
-Whisper; puoi forzare `--language it` o `--language en`, oppure scrivere `"language": "it"` in
-`projects/<slug>/project.json` e non passare nulla. La CLI usa, in ordine: `--language`, poi
-`project.json`, poi `auto`.
+Works with **Italian and English** voiceover. `--language auto` (default) lets Whisper detect; force with `--language it` or `--language en`, or set `"language": "it"` in `projects/<slug>/project.json` once; CLI uses that value if you don't pass `--language`. Works for both languages without separate projects.
 
 Output:
 
-- `build/<slug>/transcript.txt` — leggibile, con timecode
-- `build/<slug>/transcript.json` — parole con tempi al centesimo
-- `build/<slug>/transcript.srt` — sottotitoli
+- `build/<slug>/transcript.txt` — readable, with timecodes
+- `build/<slug>/transcript.json` — words with centisecond timing
+- `build/<slug>/transcript.srt` — subtitles
 
-Se l'audio e rumoroso, passa `--model medium`. Per italiano e inglese `small` e gia buono;
-per nomi di giochi e termini tecnici, `medium` riduce gli errori.
+For noisy audio, use `--model medium`. For Italian/English `small` is good; for game names and technical terms, `medium` reduces errors.
 
-L'AI legge il `.txt`, non il `.json` intero: il `.txt` e compatto e sufficiente per capire il contenuto.
+The AI reads the `.txt`, not the full `.json`: the `.txt` is compact and sufficient to understand content.
 
 ---
 
-## Fase 3 — Rough cut
+## Phase 3 — Rough Cut
 
 ```bash
 .venv/bin/python scripts/shorts.py roughcut <slug>
 ```
 
-Cosa toglie automaticamente:
+What it removes automatically:
 
-- silenzi piu lunghi di `--max-gap` (default 0.45s), lasciando `--pad` (0.10s) di respiro;
-- riempitivi sicuri (`ehm`, `uhm`, `mmm`, `boh`...), solo se isolati;
-- ripetizioni immediate (`questo questo`, balbettii).
+- silences longer than `--max-gap` (default 0.45s), keeping `--pad` (0.10s) breathing room;
+- safe fillers (`ehm`, `uhm`, `mmm`, `boh`...), only if isolated;
+- immediate repetitions (`this this`, stutters).
 
-Cosa **non** toglie da solo:
+What it **doesn't** remove automatically:
 
-- frasi sbagliate ma fluenti;
-- false partenze ("volevo dire... no aspetta");
-- "cioè", "tipo", "praticamente" (a meno di `--aggressive`).
+- wrong but fluent sentences;
+- false starts ("I meant... no wait");
+- "actually", "like", "basically" (unless `--aggressive`).
 
-Per quelle serve la revisione. Output: `build/<slug>/review.md` con una tabella di ogni taglio e il contesto.
+For those, manual review is needed. Output: `build/<slug>/review.md` with a table of every cut and context.
 
-### Correzione manuale o dell'AI
+### Manual or AI Correction
 
 `projects/<slug>/cuts.manual.json`:
 
 ```json
 {
   "drop": [
-    {"start": 42.10, "end": 44.80, "reason": "frase sbagliata, riparte"}
+    {"start": 42.10, "end": 44.80, "reason": "wrong sentence, restarts"}
   ],
   "keep": [
-    {"start": 61.00, "end": 63.50, "reason": "pausa voluta, non togliere"}
+    {"start": 61.00, "end": 63.50, "reason": "intentional pause, don't cut"}
   ]
 }
 ```
 
-Poi:
+Then:
 
 ```bash
 .venv/bin/python scripts/shorts.py roughcut <slug>
 .venv/bin/python scripts/shorts.py render-audio <slug> --normalize
 ```
 
-`keep` vince su `drop`: se un taglio automatico cade dentro un `keep`, viene annullato.
+`keep` wins over `drop`: if an auto-cut falls inside a `keep`, it's cancelled.
 
 ---
 
-## Fase 4 — Voce pulita
+## Phase 4 — Clean Audio
 
 ```bash
 .venv/bin/python scripts/shorts.py render-audio <slug> --normalize
@@ -158,66 +153,53 @@ Poi:
 
 Output:
 
-- `vo_clean.wav` — la voce tagliata, 48kHz stereo
-- `vo_clean.txt` — la stessa trascrizione ma con i **tempi nuovi**, quelli che userai per lo shotlist
-- `words.json` — ogni parola con il tempo nuovo
-- `timemap.json` — mappa originale → pulito
+- `vo_clean.wav` — cut voice, 48kHz stereo
+- `vo_clean.txt` — same transcript but with **new times**, used for shotlist
+- `words.json` — each word with new time
+- `timemap.json` — original → clean time mapping
 
-Se registri in video (talking head) aggiungi `--video`: taglia anche l'immagine.
+If you record on video (talking head), add `--video`:
 
 ```bash
 .venv/bin/python scripts/shorts.py render-audio <slug> --normalize --video
 ```
 
-Con `--video` ottieni in piu:
+With `--video` you also get:
 
-- `vo_clean.mp4` — la tua faccia gia tagliata, con gli stessi tagli dell'audio (risoluzione originale;
-  gli A-roll vengono poi adattati a 1080x1920);
-- `vo_clean_norm.mp4` — la stessa cosa normalizzata a -16 LUFS (se usi `--normalize`);
-- `vo_clean.wav` / `vo_clean_norm.wav` — l'audio per la traccia A1.
+- `vo_clean.mp4` — your face already cut, same cuts as audio (original resolution; A-roll adapted to 1080x1920);
+- `vo_clean_norm.mp4` — same normalized to -16 LUFS (if `--normalize`);
+- `vo_clean.wav` / `vo_clean_norm.wav` — audio for A1 track.
 
-Gli slot con `"source": "face"` vengono tagliati da `vo_clean.mp4` in `build/<slug>/aroll/` e messi
-direttamente su V1: **non sono segnaposto e non vanno sostituiti**. Il resto degli slot resta b-roll
-da sostituire. Se il video e orizzontale, il default `face_fit: "crop"` riempie il verticale tagliando
-i lati; usa `"fit"` se preferisci il letterbox.
+Slots with `"source": "face"` are cut from `vo_clean.mp4` into `build/<slug>/aroll/` and placed directly on V1: **they are not placeholders and must not be replaced**. The rest of slots remain b-roll to replace. If video is horizontal, default `face_fit: "crop"` fills vertical cropping sides; use `"fit"` for letterbox.
 
-> Da qui in poi **tutti i tempi sono nel tempo pulito**, cioe quello del video finale. Non tornare
-> mai ai tempi del file originale, se non per correggere i tagli.
+> From here on **all times are in clean time**, i.e., final video time. Never go back to original file times except to fix cuts.
 
 ---
 
-## Fase 5 — La regia (shotlist)
+## Phase 5 — The Direction (Shotlist)
 
-Qui l'AI fa il lavoro vero. Legge `build/<slug>/vo_clean.txt` e `media/index.json`, e scrive
-`projects/<slug>/shotlist.json`: una sequenza di **slot** che copre tutto il voiceover.
+Here the AI does the real work. Reads `build/<slug>/vo_clean.txt` and `media/index.json`, writes `projects/<slug>/shotlist.json`: a sequence of **slots** covering the whole voiceover.
 
-Un slot = un blocco visivo. Non un fotogramma, non una parola: un'inquadratura.
+A slot = a visual block. Not a frame, not a word: a shot.
 
-### Regole di montaggio che l'AI deve seguire
+### Editing Rules the AI Must Follow
 
-- **Hook**: il primo slot dura 1-2s e mostra la cosa piu forte che hai.
-- **Ritmo**: cambio visivo ogni **1.5-3s**. Mai piu di 4s sulla stessa immagine, tranne se e un momento
-  volutamente lento.
-- **Copertura**: gli slot `base` devono coprire il voiceover dall'inizio alla fine, senza buchi.
-- **Overlay**: loghi e testi vanno su `layer: "overlay"`, dentro la durata di uno slot base.
-- **Fedelta**: il suggerimento deve essere specifico ("uscita dal Vault 101", non "gameplay di Fallout").
-- **Motivazione**: ogni slot ha un `why`. Se non sai motivarlo, lo slot non serve.
-- **Caption**: obbligatorie, statiche, nel terzo inferiore, max 2 righe. Non coprono il volto ne
-  l'interfaccia importante. Niente parola-per-parola o rimbalzi: l'utente le vuole leggibili.
-- **Transizioni**: scegli 2-4 punti di svolta e usa `glitch`, `flash`, `dip-to-black` o `whip-pan`.
-  Diventano overlay su V3 e restano dopo la sostituzione. `cross-dissolve` e manuale.
-- **Talking head**: se hai registrato in video, alterna la faccia al b-roll. Usa `"source": "face"`
-  per gli slot in cui si vede il volto (hook, conclusioni, passaggi personali) e lascia il resto
-  b-roll. Gli slot faccia sono `layer: "base"`, `kind: "clip"`, `animation: "static"`, durata 1.5-4s.
-  Non metterli su `overlay` e non chiedere la sostituzione: la clip e gia tagliata da `vo_clean.mp4`.
-  Tieni libero il terzo inferiore del volto: le caption vanno li.
+- **Hook**: first slot 1–2s, shows your strongest material.
+- **Pace**: visual change every **1.5–3s**. Never more than 4s on same image, unless intentional slow moment.
+- **Coverage**: `base` slots must cover voiceover from start to end, no holes.
+- **Overlay**: logos and text go on `layer: "overlay"`, inside a base slot duration.
+- **Specificity**: suggestion must be specific ("Vault 101 door opening", not "Fallout gameplay").
+- **Motivation**: every slot has a `why`. If you can't motivate it, the slot doesn't belong.
+- **Captions**: mandatory, static, lower third, max 2 lines. Don't cover face or important game UI. No word-by-word or bouncing: user wants readable.
+- **Transitions**: pick 2–4 turning points and use `glitch`, `flash`, `dip-to-black`, `whip-pan`. They become overlays on V3 and survive placeholder replacement. `cross-dissolve` is manual.
+- **Talking head**: if you recorded on video, alternate face and b-roll. Use `"source": "face"` for slots where face appears (hook, conclusions, personal opinions, passages where face adds something) and leave rest as b-roll. Face slots are `layer: "base"`, `kind: "clip"`, `animation: "static"`, duration 1.5–4s. Don't put them on `overlay` and don't ask for replacement: clip is already cut from `vo_clean.mp4`. Keep lower third of face free: captions go there.
 
-### Formato
+### Format
 
 ```json
 {
   "project": "fallout-3-vs-new-vegas",
-  "title": "Perché FALLOUT 3 è ODIATO e NEW VEGAS AMATO?",
+  "title": "Why FALLOUT 3 is HATED and NEW VEGAS LOVED?",
   "format": { "width": 1080, "height": 1920, "fps": 30 },
   "style": "ps2-crt",
   "voiceover": "build/fallout-3-vs-new-vegas/vo_clean.wav",
@@ -226,7 +208,6 @@ Un slot = un blocco visivo. Non un fotogramma, non una parola: un'inquadratura.
   "bgm": {
     "file": "media/bgm/ps2-menu.mp3",
     "gain_db": -24,
-    "duck_db": -9,
     "loop": true
   },
   "captions": {
@@ -246,11 +227,11 @@ Un slot = un blocco visivo. Non un fotogramma, non una parola: un'inquadratura.
       "duration": 1.8,
       "layer": "base",
       "kind": "clip",
-      "intent": "Gameplay Fallout 3: uscita dal Vault 101, la porta che si apre",
+      "intent": "Fallout 3 gameplay: exiting Vault 101, door opening",
       "suggest": {
-        "primary": "media/clips/fallout3/vault101-uscita.mp4",
+        "primary": "media/clips/fallout3/vault101-exit.mp4",
         "alternatives": ["media/screenshots/fallout3/vault101.png"],
-        "why": "La frase parla di 'dove tutto e iniziato': serve il momento piu riconoscibile del gioco."
+        "why": "The phrase talks about 'where it all began': need the most recognizable moment."
       },
       "animation": "push-in-slow",
       "zoom": 1.0,
@@ -258,7 +239,7 @@ Un slot = un blocco visivo. Non un fotogramma, non una parola: un'inquadratura.
       "blend": "normal",
       "transition_in": { "type": "cut" },
       "sfx": [
-        { "file": "media/sfx/impatto-1.wav", "at": 0.0, "gain_db": -8 }
+        { "file": "media/sfx/impact-1.wav", "at": 0.0, "gain_db": -8 }
       ],
       "text": null
     }
@@ -266,346 +247,424 @@ Un slot = un blocco visivo. Non un fotogramma, non una parola: un'inquadratura.
 }
 ```
 
-### Campi
+### Fields
 
-| Campo | Obbligatorio | Note |
+| Field | Required | Notes |
 |---|---|---|
-| `id` | si | `s01`, `s02`... univoco |
-| `start` / `duration` | si | secondi, tempo pulito |
-| `layer` | si | `base` (V1) o `overlay` (V2) |
-| `source` | no | `broll` (default) o `face`: la clip viene tagliata dal talking head |
-| `kind` | si | `clip`, `image`, `logo`, `screenshot`, `text`, `ui` |
-| `intent` | si | cosa deve vedersi, in modo specifico |
-| `suggest.primary` | si | percorso in `media/` **oppure** `?descrizione` se non ce l'hai |
-| `suggest.alternatives` | no | altri candidati |
-| `suggest.why` | si | perche proprio quello |
-| `animation` | si | `static`, `push-in-slow`, `pull-out-slow`, `push-in-fast`, `pan-lr`, `pan-rl`, `drift-up` |
-| `zoom` | no | zoom statico applicato al clip (sopravvive alla sostituzione) |
-| `opacity` | no | 0–100, default 100 |
-| `blend` | no | `normal`, `add`, `multiply`, `screen`, `overlay` |
-| `transition_in.type` | no | `cut`, `cross-dissolve`, `dip-to-black`, `glitch`, `whip-pan`, `flash` |
-| `transition_in.duration` | no | 0.2-0.8s, default 0.4 |
-| `sfx` | no | `file`, `at` (secondi dall'inizio slot), `gain_db` |
-| `text` | solo se `kind: text` | il testo da mostrare |
+| `id` | yes | `s01`, `s02`... unique |
+| `start` / `duration` | yes | seconds, clean time |
+| `layer` | yes | `base` (V1) or `overlay` (V2) |
+| `source` | no | `broll` (default) or `face` (talking head already cut) |
+| `kind` | yes | `clip`, `image`, `logo`, `screenshot`, `text`, `ui` |
+| `intent` | yes | ≥ 8 chars, specific |
+| `suggest.primary` | yes | existing path **or** `?description` |
+| `suggest.alternatives` | array | no | same rule |
+| `suggest.why` | yes | ≥ 15 chars, explains choice |
+| `animation` | enum | yes | see below |
+| `zoom` | number | no | 1.0 = none. Static transform (`ZoomX`/`ZoomY`) |
+| `opacity` | number | no | 0–100, default 100. Useful for overlay |
+| `blend` | enum | no | `normal`, `add`, `multiply`, `screen`, `overlay` |
+| `transition_in` | object | no | `{ "type": "...", "duration": 0.3 }` |
+| `sfx` | array | no | `file`, `at`, `gain_db` |
+| `text` | string/null | only `kind: text` | text to display |
 
-Esempio di slot faccia (talking head):
+### Enumerations
+
+**layer**
+
+- `base` → V1, covers voiceover
+- `overlay` → V2, over a base, with alpha
+
+**source**
+
+- `broll` (default) → normal placeholder to replace
+- `face` → talking head already recorded: `placeholders` cuts `build/<slug>/vo_clean.mp4` into `build/<slug>/aroll/<id>_face.mp4` and puts on V1. Requires `layer: "base"`, `kind: "clip"` and `animation: "static"`; clip must not be replaced. `suggest` still required for documentation, but suggested file isn't used: write `"?your face, already cut from video"` and explain in `why` why face appears here.
+
+**face_fit** (top-level, talking head only)
+
+| value | effect | when |
+|---|---|---|
+| `crop` | fills 1080x1920 cropping sides | default; horizontal video with centered face |
+| `fit` | letterbox, no cropping | face or text you can't crop, already vertical with margins |
+
+If face isn't centered, use `crop` and reposition in Resolve with Transform: A-roll file is still generated at 1080x1920.
+
+Tracks V3 `TRANSITIONS` and V4 `CAPTIONS` are added by Lua script only if there are automatic transitions or captions. They are not slots: don't put them in shotlist.
+
+**kind**
+
+| value | color | meaning |
+|---|---|---|
+| `clip` | blue | moving video |
+| `image` | green | static image |
+| `logo` | orange | logo with alpha |
+| `screenshot` | purple | website, app, UI |
+| `text` | yellow | title card |
+| `ui` | pink | graphic element/HUD |
+
+**animation**
+
+| value | effect | when |
+|---|---|---|
+| `static` | still | gameplay already dynamic |
+| `push-in-slow` | zoom 1.0 → 1.16 | images, important moments |
+| `pull-out-slow` | zoom 1.16 → 1.0 | closing a concept |
+| `push-in-fast` | fast zoom at slot start | logo, reveal |
+| `pan-lr` | pan left → right | wide screenshots |
+| `pan-rl` | pan right → left | screenshots, alternative |
+| `drift-up` | slight upward movement | vertical images |
+
+**blend**
+
+| value | effect | use |
+|---|---|---|
+| `normal` | normal | default |
+| `screen` | lightens | scanlines, light leaks, light logos |
+| `add` | adds | glows, particles |
+| `multiply` | multiplies | shadows, dark textures |
+| `overlay` | contrast | grain, textures |
+
+Applied as `CompositeMode` on clip. If blend not needed, leave `normal`.
+
+**transition_in.type**
+
+`cut`, `cross-dissolve`, `dip-to-black`, `glitch`, `whip-pan`, `flash`
+
+| type | automatic | native* | effect |
+|---|---|---|---|
+| `cut` | yes | no | hard cut |
+| `glitch` | yes | no | RGB/scanline bands for 0.2–0.8s on cut |
+| `flash` | yes | no | white flash |
+| `dip-to-black` | yes | **yes** | fade to black and back (native if `native_transitions: true`) |
+| `whip-pan` | yes | no | horizontal motion streaks |
+| `cross-dissolve` | **no** | **yes** | real dissolve between clips (native if `native_transitions: true`) |
+
+* `native` = real Resolve transition (not overlay). Requires `native_transitions: true` + `animation_mode: fusion` + handles in placeholders (`transition_handle`). If handles insufficient, falls back to overlay with warning.
+
+**sfx**
 
 ```json
-{
-  "id": "s01",
-  "start": 0.0,
-  "duration": 2.6,
-  "layer": "base",
-  "source": "face",
-  "kind": "clip",
-  "intent": "Talking head: gancio guardando in camera",
-  "suggest": {
-    "primary": "?la tua faccia, gia tagliata dal video",
-    "alternatives": [],
-    "why": "Il gancio funziona se il volto tiene il contatto con lo spettatore."
-  },
-  "animation": "static",
-  "zoom": 1.0,
-  "transition_in": { "type": "cut" },
-  "sfx": [],
-  "text": null
-}
+{ "file": "media/sfx/whoosh-2.wav", "at": 0.4, "gain_db": -10 }
 ```
 
-La durata e i tempi sono sempre nel **tempo pulito** di `vo_clean.txt`. `shorts.py placeholders`
-taglia `build/<slug>/aroll/s01_face.mp4` da `vo_clean.mp4`: nessuna card, nessuna sostituzione.
-Lascia `suggest.primary` con `?` per documentare che e la tua faccia: non verra mai importata come file.
-
-Le transizioni automatiche sono overlay alpha in `build/<slug>/transitions/`, posizionati a cavallo
-del taglio su **V3**. Non sono dentro il segnaposto, quindi **sopravvivono** a `Replace Selected Clip`.
-`cross-dissolve` no: quella e una vera transizione tra clip e va fatta a mano in Edit.
-
-> **Studio 21.1.1 native_transitions**: se nello shotlist hai `"native_transitions": true` e
-> `"animation_mode": "fusion"`, le transizioni `cross-dissolve` e `dip-to-black` diventano
-> **transizioni native di Resolve** (non overlay). Servono handle (default 0.6s) nei segnaposto:
-> i segnaposto vengono generati con handle extra. `glitch`, `flash`, `whip-pan` restano overlay V3.
-> Se gli handle non bastano, il Lua fa fallback all'overlay e avvisa.
-
-Le caption sono descritte dal blocco `captions` (vedi sopra): il default e gia buono per gli Shorts.
-Metti `"enabled": false` solo se l'utente lo chiede esplicitamente.
-
-`kind` decide il colore del segnaposto e del marker:
-
-| kind | colore Resolve | uso |
-|---|---|---|
-| `clip` | blu | gameplay |
-| `image` | verde | immagini statiche |
-| `logo` | arancione | loghi |
-| `screenshot` | viola | siti, app, UI |
-| `text` | giallo | cartelli, citazioni |
-| `ui` | rosa | HUD, elementi grafici |
+- `at` is relative to slot start (seconds)
+- must be within slot duration
+- `gain_db` optional, default 0
 
 ---
 
-## Fase 6 — Validazione e segnaposto
+## Example Talking Head (2 slots)
+
+```json
+{
+  "project": "my-face",
+  "title": "I Tried This for 30 Days...",
+  "format": { "width": 1080, "height": 1920, "fps": 30 },
+  "style": "clean",
+  "voiceover": "build/my-face/vo_clean.wav",
+  "voiceover_duration": 4.8,
+  "face_fit": "crop",
+  "bgm": null,
+  "captions": { "enabled": true, "position": "lower" },
+  "slots": [
+    {
+      "id": "s01",
+      "start": 0.0,
+      "duration": 2.6,
+      "layer": "base",
+      "source": "face",
+      "kind": "clip",
+      "intent": "Talking head: hook, looking at camera stating video promise",
+      "suggest": {
+        "primary": "?your face, already cut from video",
+        "alternatives": [],
+        "why": "Personal hook works if viewer sees face and hears tone."
+      },
+      "animation": "static",
+      "zoom": 1.0,
+      "transition_in": { "type": "cut" },
+      "sfx": [],
+      "text": null
+    },
+    {
+      "id": "s02",
+      "start": 2.6,
+      "duration": 2.2,
+      "layer": "base",
+      "kind": "clip",
+      "intent": "B-roll: the result I'm talking about, from my footage",
+      "suggest": {
+        "primary": "?your clip of the result",
+        "alternatives": [],
+        "why": "When the concrete data arrives, leave face and show proof."
+      },
+      "animation": "static",
+      "zoom": 1.05,
+      "transition_in": { "type": "dip-to-black", "duration": 0.4 },
+      "sfx": [],
+      "text": null
+    }
+  ]
+}
+```
+
+Before this shotlist, you need `render-audio --video` and `vo_clean.mp4`. `placeholders` creates `build/my-face/aroll/s01_face.mp4`; slot s02 remains a placeholder to replace.
+
+---
+
+## Phase 6 — Validation and Placeholders
 
 ```bash
 .venv/bin/python scripts/shorts.py validate <slug>
 ```
 
-Controlla: campi mancanti, file inesistenti, sovrapposizioni, buchi, animazioni non valide,
-SFX fuori slot, copertura del voiceover, configurazione caption e tipi di transizione. Per il
-talking head controlla anche `source`, `face_fit`, che gli slot faccia siano `base` e che
-`build/<slug>/vo_clean.mp4` esista e copra tutti i tempi. Se ci sono
-errori **non** generare i segnaposto. L'avviso su `cross-dissolve` e voluto: quella transizione
-restera manuale.
+Checks: missing fields, missing files, overlaps, holes, invalid animations, SFX outside slots, voiceover coverage, caption config, transition types. For talking head also checks `source`, `face_fit`, that face slots are `base`, and that `build/<slug>/vo_clean.mp4` exists and covers all times. If errors **don't** generate placeholders. Warning on `cross-dissolve` is intentional: that transition stays manual.
 
 ```bash
 .venv/bin/python scripts/shorts.py placeholders <slug>
 ```
 
-Genera per ogni slot:
+Generates for each slot:
 
-- una card PNG 1350x2400 con ID, tipo, intent, suggerimento, motivo, animazione, SFX;
-- un MP4 1080x1920 con l'animazione gia dentro (zoom/pan);
-- per gli overlay un MOV con alpha (ProRes 4444).
+- a 1350x2400 card PNG with ID, type, intent, suggestion, reason, animation, SFX;
+- a 1080x1920 MP4 with animation baked in (zoom/pan);
+- for overlays a MOV with alpha (ProRes 4444).
 
-Per gli slot `source: "face"` non genera card: taglia `build/<slug>/vo_clean.mp4` in
-`build/<slug>/aroll/<id>_face.mp4`, gia a 1080x1920, e lo mette nel manifest come base. Questi clip
-**non vanno sostituiti**. Se `vo_clean.mp4` manca, `placeholders` si ferma e ti dice di lanciare
-`render-audio --video`.
+For `source: "face"` slots no card: cuts `build/<slug>/vo_clean.mp4` into `build/<slug>/aroll/<id>_face.mp4` at 1080x1920, puts in manifest as base. These clips **must not be replaced**. If `vo_clean.mp4` missing, `placeholders` stops and tells you to run `render-audio --video`.
 
-E inoltre:
+Also generates:
 
-- `build/<slug>/captions/` — card QTRLE alpha (`c001.mov`...), `manifest.json`, `captions.srt`;
-- `build/<slug>/transitions/` — overlay alpha per `glitch`, `flash`, `dip-to-black`, `whip-pan`.
+- `build/<slug>/captions/` — QTRLE alpha cards (`c001.mov`...), `manifest.json`, `captions.srt`;
+- `build/<slug>/transitions/` — alpha overlays for `glitch`, `flash`, `dip-to-black`, `whip-pan`.
 
-Le caption richiedono `build/<slug>/words.json`: se manca, `placeholders` avvisa e le salta.
-Puoi rigenerare solo le caption con `shorts.py captions <slug> --force`.
+Captions require `build/<slug>/words.json`: if missing, `placeholders` warns and skips. Regenerate captions only with `shorts.py captions <slug> --force`. Only captions: `python scripts/shorts.py captions <slug> --force`.
 
-I segnaposto durano **esattamente** quanto lo slot. Questo e importante per la sostituzione.
+Placeholders last **exactly** the slot duration. This matters for replacement.
 
 ---
 
-## Fase 7 — Costruire la timeline in Resolve
+## Phase 7 — Build Timeline in Resolve
 
 ```bash
 .venv/bin/python scripts/shorts.py lua <slug>
 ```
 
-Genera `build/<slug>/<slug>_build.lua`.
+Generates `build/<slug>/<slug>_build.lua`.
 
 In Resolve:
 
-1. Apri un progetto (anche vuoto).
+1. Open a project (even empty).
 2. **Workspace > Console**.
-3. Seleziona **Lua** nel menu in basso.
-4. Trascina il file `.lua` nella Console.
-5. Invio.
+3. Select **Lua** in bottom dropdown.
+4. Drag the `.lua` file into Console.
+5. Press Enter.
 
-Lo script:
+Script:
 
-- imposta 1080x1920 e il frame rate;
-- crea un bin `SHORTS_<slug>` e importa segnaposto, voce, SFX, BGM, transizioni e caption;
-- crea la timeline `<slug>_v1` (se esiste gia, la rinomina `_old_HHMMSS` e ne crea una nuova);
-- layout tracce: **V1** B-ROLL + A-roll della faccia, **V2** OVERLAY, **V3** TRANSITIONS,
-  **V4** CAPTIONS; **A1** VOICE, **A2** SFX, **A3** BGM;
-- V3/V4 vengono create solo se ci sono transizioni/caption;
-- usa i file audio già preparati in `build/<slug>/audio/` (gain degli SFX, BGM loopata e tagliata);
-- colora i clip per tipo, applica `zoom`, `opacity` e `blend`;
-- mette un **marker per ogni slot** con dentro: cosa mettere, consigliato, perche, animazione, transizione;
-  per gli slot faccia il marker dice `A-ROLL/FACCIA: gia tagliata, non sostituire`;
-- stampa un report e verifica che i clip siano alla posizione giusta.
+- sets 1080x1920 and frame rate;
+- creates bin `SHORTS_<slug>` and imports placeholders, voiceover, SFX, BGM;
+- creates timeline `<slug>_v1` (if exists, renames to `_old_HHMMSS` and creates new);
+- adds tracks and names them:
+  - V1 `B-ROLL` (placeholders + A-roll face clips)
+  - V2 `OVERLAY`
+  - V3 `TRANSITIONS` (only if automatic transitions exist)
+  - V4 `CAPTIONS` (only if captions exist)
+  - A1 `VOICE`
+  - A2 `SFX`
+  - A3 `BGM`
+- appends clips with `AppendToTimeline({ mediaPoolItem, trackIndex, recordFrame })`;
+  for face slots also adds `startFrame = 0` and `endFrame = frames` (exclusive bound),
+  so A-roll duration is exact to the frame
+- colors clips (`SetClipColor`) by `kind` (A-roll = `Cyan`)
+- applies static `zoom` (`SetProperty("ZoomX"/"ZoomY", ...)`)
+- applies `opacity` (`SetProperty("Opacity", ...)`) and `blend` (`SetProperty("CompositeMode", ...)`)
+- puts transition overlays on V3 (straddling cut) and caption cards on V4
+- puts prepared audio files in timeline from `build/<slug>/audio/` (SFX with gain baked, BGM looped/cut with fade)
+- adds a marker per slot with multiline notes
+- prints report and verifies clips at correct positions
 
-Alla fine torna in **Edit**: la timeline e pronta.
+At the end you're in **Edit**: timeline is ready.
 
-> Se nella Console vedi `!! file mancante`, manca un segnaposto: rilancia `placeholders`.
-> Se vedi `A2 sfx: 0`, il parametro `recordFrame` non e supportato dalla tua versione: aggiorna Resolve.
-> Se `V4 caption: 0`, manca `words.json`: lancia `render-audio` e poi `placeholders --force`.
+> If Console shows `!! file mancante`, missing placeholder: rerun `placeholders`.
+> If `A2 sfx: 0`, `recordFrame` unsupported by your version: update Resolve 21.x.
+> If `V4 caption: 0`, missing `words.json`: run `render-audio` then `placeholders --force`.
+> If `cross-dissolve` doesn't appear, free API doesn't create real transitions: do manually in Edit, or use an automatic type.
 
 ---
 
-## Fase 8 — Sostituire i segnaposto
+## Phase 8 — Replace Placeholders
 
-Ogni segnaposto e un file unico (`s01_base.mp4`), usato una sola volta. Questo rende la sostituzione sicura.
+Each placeholder is a unique file (`s01_base.mp4`), used once. This makes replacement safe.
 
-> **Talking head**: gli slot `source: "face"` non sono segnaposto. Sono clip vere in
-> `build/<slug>/aroll/`, gia tagliate e montate su V1. Non sostituirle: passa direttamente al
-> segnaposto successivo. Anche il marker te lo ricorda.
+> **Talking head**: `source: "face"` slots are not placeholders. They are real clips in `build/<slug>/aroll/`, already cut and placed on V1. Don't replace them: move to next placeholder. Marker reminds you.
 
-> **Studio 21.1.1 Quality Mode**: se nello shotlist hai `"animation_mode": "fusion"`, i segnaposto
-> animati vengono generati **statici** (senza zoompan cotto). L'animazione e un Fusion comp attaccato
-> al clip timeline: dopo `Replace Selected Clip` (F11) l'animazione **resta** e si applica al tuo
-> media vero. **Non riapplicare** zoom/pan dopo la sostituzione.
+### Recommended Method — Replace Selected Clip
 
-### Metodo consigliato — Replace Selected Clip
+1. Import your clip into a bin (drag into Media Pool).
+2. In Media Pool select the **placeholder** (`s01_base`), not your clip.
+3. Right-click → **Clip Operations > Replace Selected Clip...**
+4. Choose your file.
 
-1. Importa il tuo clip in un bin (trascinalo nel Media Pool).
-2. Nel Media Pool seleziona il **segnaposto** (`s01_base`), non il tuo clip.
-3. Click destro → **Clip Operations > Replace Selected Clip...**
-4. Scegli il tuo file.
+What happens: the file behind the Media Pool item changes, timeline untouched.
+So **position, duration, transform, zoom, effects, grade, markers, Fusion comp** all stay.
 
-Cosa succede: il file dietro al Media Pool item cambia, la timeline non viene toccata.
-Quindi restano **posizione, durata, transform, zoom, effetti, grade, marker, Fusion comp**.
+> This method replaces the file in *all* its occurrences. Placeholder is used once,
+> so it's equivalent to replacing one slot. If you duplicate a placeholder across slots, use F11 instead.
 
-> Questo metodo sostituisce il file in *tutte* le sue occorrenze. Il segnaposto e usato una volta sola,
-> quindi equivale a sostituire un solo slot. Se duplichi un segnaposto su piu slot, usa F11 invece.
+### Alternative Method — F11 (Replace Edit)
 
-### Metodo alternativo — F11 (Replace edit)
+1. Double-click your clip in Media Pool (opens in Source Viewer).
+2. Put playhead at correct source point.
+3. Put timeline playhead over placeholder.
+4. Press **F11**.
 
-1. Doppio click sul tuo clip nel Media Pool (si apre nel Source Viewer).
-2. Metti il playhead nel punto giusto del sorgente.
-3. Metti il playhead della timeline sopra il segnaposto.
-4. Premi **F11**.
+Resolve fits new clip duration to slot. Effects and grade stay.
 
-Resolve adatta la durata del nuovo clip allo slot. Effetti e grade restano.
+### What Survives and What Doesn't
 
-### Cosa sopravvive e cosa no
-
-| Elemento | Dopo sostituzione |
+| Element | After replacement |
 |---|---|
-| posizione, durata, marker | resta |
-| transform, zoom statico, crop | resta |
-| effetti Edit, grade | resta |
-| Fusion composition sul clip | resta |
-| **animazione dentro il file segnaposto** | **sparisce** (era nel file) |
-| transizioni automatiche su V3 | **restano** (sono clip separati, non dentro il segnaposto) |
-| caption su V4 | **restano** (sono clip separati, gia posizionate) |
-| clip A-roll della faccia | sono gia media veri: **non vanno sostituite** |
-| `cross-dissolve` | resta manuale: va creata in Edit tra i due clip |
+| position, duration, markers | stays |
+| transform, static zoom, crop | stays |
+| Edit effects, grade | stays |
+| Fusion composition on clip | stays |
+| **animation baked in placeholder** | **gone** (was in file) |
+| automatic transitions on V3 | **stay** (separate clips, not in placeholder) |
+| captions on V4 | **stay** (separate clips, already positioned) |
+| A-roll face clips | already real media: **don't replace** |
+| `cross-dissolve` | manual: create in Edit between clips |
 
-L'animazione dei segnaposto e una **anteprima** di come dovrebbe muoversi lo slot. Dopo la sostituzione
-la rimetti sul clip vero con uno dei metodi della fase 9. Le transizioni automatiche e le caption,
-invece, non le devi rifare: sono su tracce separate.
+Placeholder animation is a **preview** of how the slot should move. After replacement, re-apply it on the real clip using phase 9 methods. Automatic transitions and captions don't need redoing: they're on separate tracks.
 
 ---
 
-## Fase 9 — Animazioni sul media vero
+## Phase 9 — Animations on Real Media
 
-Gli slot A-roll della faccia nascono **statici**: il taglio automatico non cuoce zoom o pan. Se vuoi
-un push-in sul volto, applicalo qui con un template Fusion o a mano. Per il b-roll vale quanto segue.
+A-roll face slots are born **static**: auto-cut doesn't bake zoom/pan. If you want a push-in on face, apply it here with a Fusion template or manually. For b-rol, three paths from fastest to most powerful.
 
-Tre strade, dalla piu veloce alla piu potente.
+### A. Static Zoom (Already Done)
 
-### A. Zoom statico (già fatto)
+If shotlist has `"zoom": 1.05`, script applies to clip (`ZoomX`/`ZoomY`): static transform, survives replacement. Good for "punch-in" without movement. Same for `opacity` and `blend`.
 
-Se nello shotlist hai `"zoom": 1.05`, lo script lo applica al clip (`ZoomX`/`ZoomY`): è un transform
-statico, quindi sopravvive alla sostituzione. Per un "punch-in" senza movimento è sufficiente.
-Lo stesso vale per `opacity` e `blend`.
+### B. Fusion Template (Recommended)
 
-### B. Template Fusion (consigliato)
+In `presets/fusion/README.md` recipe to create **once** 5 animations
+(zoom-in, zoom-out, pan L→R, pan R→L, drift up) as Fusion Effect. Then:
 
-In `presets/fusion/README.md` c'e la ricetta per creare **una volta sola** 5 animazioni
-(zoom-in, zoom-out, pan L→R, pan R→L, drift up) come Fusion Effect. Poi:
+1. replace clip;
+2. drag template from Effects Library onto clip;
+3. done.
 
-1. sostituisci il clip;
-2. trascini il template dall'Effects Library sul clip;
-3. fatto.
+One template applies to multiple selected clips.
 
-Un template si applica anche a piu clip selezionati insieme.
+### C. Automatic (Studio 21.1.1 Quality Mode)
 
-### C. Automatico (sperimentale)
-
-`scripts/lua/20_fusion_probe.lua` testa se la tua versione free accetta `AddFusionComp` /
-`ImportFusionComp` dalla Console. Se funziona, possiamo far applicare le animazioni direttamente
-dallo script di build (una riga per slot). Finche non e verificato, restano A e B.
+If shotlist has `"animation_mode": "fusion"`, script creates Fusion comp on timeline clip with keyframes. Animation **survives** `Replace Selected Clip`. See Studio 21.1.1 section in README.
 
 ---
 
-## Fase 10 — Audio
+## Phase 10 — Audio
 
-Lo script ha già messo:
+Script already placed:
 
-- voce su A1 (normalizzata a -16 LUFS se hai usato `render-audio --normalize`);
-- SFX su A2 ai frame calcolati, con il gain già applicato;
-- BGM su A3 come **un solo clip**, già loopato, tagliato alla durata esatta della timeline e con
-  fade in/out.
+- voice on A1 (normalized to -16 LUFS if `render-audio --normalize`);
+- SFX on A2 at calculated frames, with gain baked;
+- BGM on A3 as **single clip**, already looped, cut to exact timeline duration, with fade in/out.
 
-Come funziona il gain: l'API di Resolve **non espone il volume dei clip**. Quando lanci `lua`,
-`shorts.py` crea in `build/<slug>/audio/` una copia di ogni SFX con il `gain_db` dello shotlist
-(`impatto-1_g-8.wav`) e una `bgm_mix.wav` con gain, loop, taglio e fade. In timeline finiscono quei
-file: i tuoi originali in `media/` non vengono toccati.
+How gain works: Resolve API **doesn't expose clip volume**. When running `lua`, `shorts.py` creates in `build/<slug>/audio/` a copy of each SFX with shotlist `gain_db` (`impact-1_g-8.wav`) and a `bgm_mix.wav` with gain, loop, cut, fade. Timeline gets those files: your originals in `media/` untouched.
 
-Cosa fare a mano:
+Manual steps:
 
-1. **Livelli**: ascolta. Voce a -6/-3 dB di picco, SFX -15/-10, BGM -25/-20. Se un SFX è troppo
-   forte, cambia `gain_db` nello shotlist e rilancia `lua` (5 secondi, non si rifà la timeline).
-2. **Ducking**: la BGM deve scendere di 6-9 dB sotto la voce. In Fairlight: keyframe del volume
-   sulla traccia A3, oppure clip volume + automazione. La GUI lo fa in 20 secondi per uno short.
-3. **Silenzi**: se un taglio respira male, aggiungi 2-3 frame di room tone invece del silenzio assoluto.
-4. **Loudness finale**: target YouTube circa **-14 LUFS integrated**. Se la voce è a -16, alza il
-   master di 1-2 dB in Fairlight.
+1. **Levels**: listen. Voice at -6/-3 dB peak, SFX -15/-10, BGM -25/-20. If SFX too loud, change `gain_db` in shotlist and rerun `lua` (5 seconds, no timeline rebuild).
+2. **Ducking**: BGM must drop 6–9 dB under voice. In Fairlight: keyframe volume on A3, or clip volume + automation. GUI does it in 20s for a Short.
+3. **Silence**: if a cut breathes badly, add 2–3 frames of room tone instead of absolute silence.
+4. **Final loudness**: YouTube target ~**-14 LUFS integrated**. If voice at -16, raise master 1–2 dB in Fairlight.
 
-I nomi degli SFX sono fissi: vedi `media/sfx/README.md`. Se rinomini un file, rifai `scan` e `lua`.
-Se cambi la durata della timeline (tagli, slot), rilancia `lua`: la BGM viene ritagliata alla nuova durata.
+SFX names are fixed: see `media/sfx/README.md`. If you rename a file, redo `scan` and `lua`.
+If you change timeline duration (cuts, slots), rerun `lua`: BGM recut to new duration.
 
 ---
 
-## Fase 11 — Export
+## Phase 11 — Export
 
-Impostazioni per Shorts:
+Shorts settings:
 
-| Parametro | Valore |
+| Parameter | Value |
 |---|---|
-| Formato | MP4 |
+| Format | MP4 |
 | Codec | H.264 |
-| Risoluzione | 1080x1920 |
-| Frame rate | 30 (o 60 se il progetto e 60) |
-| Qualita | 20-24 Mbps (o "High") |
+| Resolution | 1080x1920 |
+| Frame rate | 30 (or 60 if project is 60) |
+| Quality | 20–24 Mbps (or "High") |
 | Audio | AAC 320 kbps, 48 kHz |
 | Color | Rec.709 / sRGB |
 
-In Deliver: seleziona la timeline, imposta e aggiungi alla coda. Oppure usa
-`scripts/lua/90_render_queue.lua` (imposta formato, codec e cartella, poi aggiunge il job).
+In Deliver: select timeline, set, add to queue. Or use `scripts/lua/90_render_queue.lua` (sets format, codec, folder, adds job).
 
 ---
 
-## Fase 12 — QC e iterazione
+## Phase 12 — QC and Iteration
 
 ```bash
 .venv/bin/python scripts/shorts.py qc <slug> --video build/<slug>/export/<slug>.mp4
 ```
 
-Estrae un fotogramma al centro di ogni slot e li mette in una contact sheet con il numero di slot.
-Apri `build/<slug>/qc/sheet_01.jpg` oppure allegalo a OpenCode: l'agente puo leggerlo e commentare
-inquadrature, testi, coerenza e leggibilita delle caption (posizione, dimensione, copertura).
+Extracts one frame at center of each slot, makes contact sheet with slot numbers.
+Open `build/<slug>/qc/sheet_01.jpg` or attach to OpenCode: agent reads it and comments on framing, text, style consistency, caption readability (position, size, coverage).
 
-Se devi cambiare il montaggio:
+If you need to change the edit:
 
-1. modifica `projects/<slug>/shotlist.json`;
+1. edit `projects/<slug>/shotlist.json`;
 2. `validate` → `placeholders --force` → `lua`;
-3. in Resolve rilancia lo script: rinomina la vecchia timeline e ne crea una nuova.
+3. in Resolve rerun script: renames old timeline and creates new one.
 
-Non perdere tempo a modificare la timeline a mano se il problema e nella regia: torna allo shotlist.
+Don't waste time tweaking timeline manually if the issue is in the direction: go back to shotlist.
 
 ---
 
-## Divisione del lavoro
+## Work Division
 
-| Attivita | Chi |
+| Task | Who |
 |---|---|
-| trascrivere, togliere pause ed errori | AI + script |
-| decidere cosa si vede e perche | AI, tu approvi |
-| scegliere quali clip usare davvero | tu |
-| costruire timeline, marker, SFX, BGM, caption | script Lua |
-| transizioni automatiche (glitch/flash/dip/whip-pan) | script Lua, su V3 |
-| riempire gli slot | tu |
-| animazioni di camera e cross-dissolve | tu (template Fusion / Edit) |
-| testi e grafiche extra | tu |
-| color, audio mix, export | tu |
+| transcribe, remove pauses/errors | AI + script |
+| decide what's seen and why | AI, you approve |
+| choose which clips to actually use | you |
+| build timeline, markers, SFX, BGM, captions | Lua script |
+| automatic transitions (glitch/flash/dip/whip-pan) | Lua script, on V3 |
+| fill slots | you |
+| camera animations & cross-dissolve | you (Fusion template / Edit) |
+| extra text/graphics | you |
+| color, audio mix, export | you |
 
-L'AI ti risparmia il 70-80% del tempo meccanico. Il restante 20% e la parte che rende il video tuo.
+AI saves 70–80% of mechanical time. The remaining 20% is what makes the video yours.
 
 ---
 
 ## Troubleshooting
 
-| Problema | Causa | Soluzione |
+| Problem | Cause | Solution |
 |---|---|---|
-| `resolve == nil` in Console | script lanciato da terminale | trascinalo nella Console di Resolve |
-| `CreateEmptyTimeline` restituisce nil | nessun progetto aperto | apri/crea un progetto |
-| i clip finiscono tutti a 0 | `recordFrame` non supportato | aggiorna Resolve 21.x |
-| `!! file mancante` | percorso segnaposto errato | rilancia `placeholders`, poi `lua` |
-| l'audio non c'e | file non importato | controlla che `vo_clean.wav` esista |
-| i segnaposto sono neri | codec non supportato | rigenera con `--force` (H.264 + ProRes) |
-| Resolve free rifiuta uno script | Scripts menu = Studio | usa solo la Console |
-| Whisper non parte | venv sbagliato | usa `.venv/bin/python` |
-| i tempi non tornano | stai usando i tempi del file originale | usa `vo_clean.txt` |
-| `captions saltate: manca words.json` | `placeholders` lanciato prima di `render-audio` | `render-audio`, poi `placeholders --force` |
-| niente caption in timeline | V4 non creata o manifest vuoto | controlla `captions.enabled` e `build/<slug>/captions/manifest.json` |
-| `cross-dissolve` non appare | l'API free non crea transizioni reali | falla a mano in Edit, oppure usa un tipo automatico |
+| `resolve == nil` in Console | script run from terminal | drag into Resolve Console |
+| `CreateEmptyTimeline` returns nil | no project open | open/create project |
+| all clips end at 0 | `recordFrame` unsupported | update Resolve 21.x |
+| `!! file missing` | wrong placeholder path | rerun `placeholders`, then `lua` |
+| no audio | file not imported | check `vo_clean.wav` exists |
+| placeholders black | unsupported codec | rerun with `--force` (H.264 + ProRes) |
+| Resolve free rejects script | Scripts menu = Studio | use Console only |
+| Whisper won't start | wrong venv | use `.venv/bin/python` |
+| times don't match | using original file times | use `vo_clean.txt` |
+| `captions skipped: missing words.json` | `placeholders` before `render-audio` | `render-audio`, then `placeholders --force` |
+| no captions in timeline | V4 not created or empty manifest | check `captions.enabled` and `build/<slug>/captions/manifest.json` |
+| `cross-dissolve` missing | free API doesn't create real transitions | do manually in Edit, or use automatic type |
+
+---
+
+## Alternative: Start from Pre-Edited Video
+
+If you already have a video **without pauses/errors** (cut elsewhere), skip transcribe/roughcut/render-audio:
+
+```bash
+.venv/bin/python scripts/shorts.py init-from-video my-video /path/to/edited_video.mp4
+```
+
+Extracts audio (`vo_clean.wav`), copies video (`vo_clean.mp4` for A-roll), measures duration, creates project ready for shotlist. Then continue from `scan` → `validate` → `placeholders` → `lua`.

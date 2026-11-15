@@ -392,10 +392,91 @@ def cmd_init(args: argparse.Namespace) -> int:
     (pdir / "notes.md").write_text("# Note %s\n\n" % slug, encoding="utf-8")
     build_dir(slug).mkdir(parents=True, exist_ok=True)
 
-    log("Creato projects/%s/" % slug)
-    log("  1. metti il voiceover in media/voiceover/raw/")
+    log("Created projects/%s/" % slug)
+    log("  1. put voiceover in media/voiceover/raw/")
     log("  2. python scripts/shorts.py scan")
     log("  3. python scripts/shorts.py transcribe %s" % slug)
+    return 0
+
+
+def cmd_init_from_video(args: argparse.Namespace) -> int:
+    """Create project from an already-edited video file (no pauses/errors).
+    Extracts audio, gets duration, sets up project ready for shotlist."""
+    slug = args.slug
+    if not slug_ok(slug):
+        die("invalid slug: use lowercase, numbers, hyphen (e.g. fallout3-vs-newvegas)")
+    video_path = Path(args.video).expanduser().resolve()
+    if not video_path.exists():
+        die("video file not found: %s" % video_path)
+
+    pdir = project_dir(slug)
+    if pdir.exists() and not args.force:
+        die("projects/%s already exists (use --force to overwrite)" % slug)
+
+    pdir.mkdir(parents=True, exist_ok=True)
+    bdir = build_dir(slug)
+    bdir.mkdir(parents=True, exist_ok=True)
+
+    # Extract audio from video
+    log("Extracting audio from %s..." % video_path)
+    info = ffprobe(video_path)
+    if not info.get("has_video"):
+        die("input file has no video track: %s" % video_path)
+    duration = float(info.get("duration") or 0.0)
+    if duration <= 0:
+        die("could not determine video duration")
+
+    # Extract audio to vo_clean.wav
+    vo_wav = bdir / "vo_clean.wav"
+    run(["ffmpeg", "-y", "-i", str(video_path), "-vn",
+         "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2", str(vo_wav)])
+    log("Audio extracted: %s (%.2fs)" % (rel(vo_wav), duration))
+
+    # Also copy video as vo_clean.mp4 for potential A-roll use
+    vo_mp4 = bdir / "vo_clean.mp4"
+    run(["ffmpeg", "-y", "-i", str(video_path), "-c", "copy", str(vo_mp4)])
+    log("Video copied: %s" % rel(vo_mp4))
+
+    # Create project files
+    tpl = dict(PROJECT_TEMPLATE_JSON)
+    tpl["slug"] = slug
+    tpl["title"] = args.title or slug.replace("-", " ").title()
+    tpl["language"] = getattr(args, "language", None) or "auto"
+    write_json(pdir / "project.json", tpl)
+    (pdir / "script.md").write_text(SCRIPT_TEMPLATE.format(title=tpl["title"]), encoding="utf-8")
+    write_json(pdir / "cuts.manual.json", CUTS_MANUAL_TEMPLATE)
+
+    shotlist = {
+        "project": slug,
+        "title": tpl["title"],
+        "format": tpl["format"],
+        "style": tpl["style"],
+        "voiceover": "build/%s/vo_clean.wav" % slug,
+        "voiceover_duration": round(duration, 2),
+        "bgm": None,
+        "captions": {
+            "enabled": True,
+            "position": "lower",
+            "max_words": 4,
+            "max_chars": 32,
+            "uppercase": False,
+        },
+        "slots": [],
+    }
+    write_json(pdir / "shotlist.json", shotlist)
+    (pdir / "notes.md").write_text("# Notes %s\n\n" % slug, encoding="utf-8")
+
+    log("Created projects/%s/ from pre-edited video" % slug)
+    log("  voiceover: %s (%.2fs)" % (rel(vo_wav), duration))
+    log("  vo_clean.mp4 ready for A-roll if needed")
+    log("")
+    log("Next steps:")
+    log("  1. python scripts/shorts.py scan")
+    log("  2. Write shotlist in projects/%s/shotlist.json" % slug)
+    log("  3. python scripts/shorts.py validate %s" % slug)
+    log("  4. python scripts/shorts.py placeholders %s" % slug)
+    log("  5. python scripts/shorts.py captions %s" % slug)
+    log("  6. python scripts/shorts.py lua %s" % slug)
     return 0
 
 
@@ -3052,13 +3133,22 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("doctor", help="verifica dipendenze")
     p.set_defaults(func=cmd_doctor)
 
-    p = sub.add_parser("init", help="crea un progetto")
+    p = sub.add_parser("init", help="create a new project")
     p.add_argument("slug")
     p.add_argument("--title", default="")
     p.add_argument("--language", default="auto",
-                   help="lingua del voiceover: auto, it, en, ... (default: auto)")
+                   help="voiceover language: auto, it, en, ... (default: auto)")
     p.add_argument("--force", action="store_true")
     p.set_defaults(func=cmd_init)
+
+    p = sub.add_parser("init-from-video", help="create project from an already-edited video (skip transcribe/roughcut/render-audio)")
+    p.add_argument("slug")
+    p.add_argument("video", help="path to already-edited video file (no pauses/errors)")
+    p.add_argument("--title", default="")
+    p.add_argument("--language", default="auto",
+                   help="voiceover language: auto, it, en, ... (default: auto)")
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(func=cmd_init_from_video)
 
     p = sub.add_parser("scan", help="indicizza media/")
     p.set_defaults(func=cmd_scan)

@@ -1,18 +1,25 @@
-# Shotlist — schema completo
+# Shotlist — Complete Schema
 
 File: `projects/<slug>/shotlist.json`
-Validato da: `python scripts/shorts.py validate <slug>`
+Validated by: `python scripts/shorts.py validate <slug>`
 
 ---
 
-## Struttura
+## Structure
 
 ```json
 {
   "project": "slug",
-  "title": "Titolo del video",
+  "title": "Video Title",
   "format": { "width": 1080, "height": 1920, "fps": 30 },
   "style": "ps2-crt",
+  "animation_mode": "baked",
+  "native_transitions": false,
+  "transition_handle": 0.6,
+  "audio": {
+    "voice_isolation": false,
+    "voice_isolation_amount": 60
+  },
   "voiceover": "build/<slug>/vo_clean.wav",
   "voiceover_duration": 58.4,
   "face_fit": "crop",
@@ -20,7 +27,8 @@ Validato da: `python scripts/shorts.py validate <slug>`
     "file": "media/bgm/ps2-menu.mp3",
     "gain_db": -24,
     "duck_db": -9,
-    "loop": true
+    "loop": true,
+    "duck": false
   },
   "captions": {
     "enabled": true,
@@ -37,74 +45,55 @@ Validato da: `python scripts/shorts.py validate <slug>`
 }
 ```
 
-| Campo | Tipo | Obbligatorio | Note |
+| Field | Type | Required | Notes |
 |---|---|---|---|
-| `project` | string | si | deve coincidere con lo slug |
-| `title` | string | no | usato solo per leggibilita |
-| `format` | object | si | **1080x1920 @ 30** e il default per Shorts |
-| `style` | string | si | `anime90`, `crt`, `ps2`, `frutiger-aero`, `clean` |
-| `animation_mode` | enum | no | `baked` (default) o `fusion`: modalita animazione segnaposto |
-| `native_transitions` | boolean | no | `false` default; `true` richiede `animation_mode: fusion` |
-| `transition_handle` | number | no | secondi (0.2-1.5); default 0.6 se `native_transitions` |
+| `project` | string | yes | must match slug |
+| `title` | string | no | readability only |
+| `format` | object | yes | **1080x1920 @ 30** is Shorts default |
+| `style` | string | yes | `anime90`, `crt`, `ps2`, `frutiger-aero`, `clean` |
+| `animation_mode` | enum | no | `baked` (default) or `fusion` |
+| `native_transitions` | boolean | no | `false` default; `true` requires `animation_mode: fusion` |
+| `transition_handle` | number | no | seconds (0.2–1.5); default 0.6 if `native_transitions` |
 | `audio` | object | no | `{ voice_isolation: bool, voice_isolation_amount: 0-100 }` |
-| `style` | string | si | `anime90`, `crt`, `ps2`, `frutiger-aero`, `clean` |
-| `voiceover` | string | si | percorso di `vo_clean.wav` (o `.mp4`) |
-| `voiceover_duration` | number | si | durata in secondi del voiceover pulito |
-| `face_fit` | string | no | `crop` (default) o `fit`: come adattare il talking head al verticale |
-| `face_video` | string | no | override avanzato: A-roll gia tagliato in sync. Default `build/<slug>/vo_clean.mp4` |
-| `bgm` | object/null | no | se `null`, niente musica; vedi sotto per campi `duck`/`duck_db` |
-| `captions` | object | no | default attivo, terzo inferiore; vedi sotto |
-| `slots` | array | si | almeno uno |
+| `voiceover` | string | yes | path to `vo_clean.wav` (or `.mp4`) |
+| `voiceover_duration` | number | yes | clean voiceover duration in seconds |
+| `face_fit` | string | no | `crop` (default) or `fit`: how to fit talking head to vertical |
+| `face_video` | string | no | advanced override: pre-cut A-roll in sync. Default `build/<slug>/vo_clean.mp4` |
+| `bgm` | object/null | no | if `null`, no music |
+| `captions` | object | no | default on, lower third; see below |
+| `slots` | array | yes | at least one |
 
-> La lingua del voiceover non sta nello shotlist: si imposta in `projects/<slug>/project.json`
-> (`"language": "auto" | "it" | "en" | ...`) oppure con `transcribe --language`.
-> Vale per italiano e inglese senza cambiare pipeline.
-
-### Campi Studio 21.1.1 (opzionali)
-
-| Campo | Tipo | Note |
-|---|---|---|
-| `animation_mode` | enum | `baked` (default) o `fusion`. In `fusion` i segnaposto animati sono statici; l'animazione e un Fusion comp sul clip timeline che sopravvive a `Replace Selected Clip`. |
-| `native_transitions` | boolean | `false` default; `true` = `cross-dissolve` e `dip-to-black` diventano transizioni native di Resolve. Richiede `animation_mode: fusion`. |
-| `transition_handle` | number | Secondi (0.2-1.5). Default 0.6 se `native_transitions`. Handle extra nei segnaposto base per le transizioni native. |
-| `audio` | object | `{ voice_isolation: bool, voice_isolation_amount: 0-100 }`. Voice Isolation su A1 per talking head. Default `false`. |
+> Voiceover language is not in shotlist: set in `projects/<slug>/project.json` (`"language": "auto" | "it" | "en" | ...`) or with `transcribe --language`. Works for Italian and English without pipeline changes.
 
 ### `bgm`
 
-| Campo | Tipo | Note |
+| Field | Type | Notes |
 |---|---|---|
-| `file` | string | percorso in `media/bgm/` |
-| `gain_db` | number | negativo. -24 e un buon punto di partenza |
-| `duck_db` | number | quanto abbassare sotto la voce (indicativo, per il ducking automatico: -3 a -24) |
-| `loop` | bool | se true la BGM viene loopata fino alla durata della timeline |
-| `duck` | boolean | `false` default; `true` = genera `bgm_duck.wav` con sidechaincompress |
+| `file` | string | path in `media/bgm/` |
+| `gain_db` | number | negative. -24 is good starting point |
+| `duck_db` | number | how much to duck under voice (indicative, for auto ducking: -3 to -24) |
+| `loop` | bool | if true BGM loops to timeline duration |
+| `duck` | boolean | `false` default; `true` = generate `bgm_duck.wav` with sidechaincompress |
 
-Da `lua` viene creato `build/<slug>/audio/bgm_mix.wav` (o `bgm_duck.wav` se `duck: true`):
-loop, taglio esatto alla durata della timeline, fade in/out e gain sono già dentro. In timeline c'è **un solo clip**.
-Con `duck: true` il ducking e automatico via `sidechaincompress` (voice come sidechain, ratio ~ |duck_db|*0.9).
-Se il filtro fallisce, torna al mix standard e avvisa. Il ducking manuale (Fairlight, keyframe) non serve piu.
+Lua creates `build/<slug>/audio/bgm_mix.wav` (or `bgm_duck.wav` if `duck: true`): loop, exact cut to timeline duration, fade in/out and gain already baked. Single clip in timeline. With `duck: true` ducking is automatic via `sidechaincompress` (voice as sidechain, ratio ~\|duck_db\|*0.9). If filter fails, falls back to standard mix and warns. Manual ducking (Fairlight, keyframes) no longer needed.
 
 ### `captions`
 
-Per gli Shorts sono **obbligatorie**. Sono card statiche (non word-by-word), nel terzo inferiore,
-max 2 righe, con sfondo semi-trasparente. Vengono generate da `words.json` (prodotto da
-`render-audio`) e messe su una traccia video dedicata, sopra le transizioni.
+For Shorts they're **mandatory**. Static cards (not word-by-word), lower third, max 2 lines, semi-transparent background. Generated from `words.json` (from `render-audio`) and placed on dedicated video track above transitions.
 
-| Campo | Default | Note |
+| Field | Default | Notes |
 |---|---|---|
-| `enabled` | `true` | se `false`, niente caption (sconsigliato) |
+| `enabled` | `true` | if `false`, no captions (not recommended) |
 | `position` | `lower` | `lower`, `middle`, `upper` |
-| `max_words` | `4` | 3-5 e il range leggibile |
-| `max_chars` | `32` | limita la larghezza della card |
-| `max_duration` | `3.2` | secondi; evita card che restano troppo |
-| `font_size` | `66` | a 1080x1920 e gia grande; il codice riduce per far stare 2 righe |
-| `uppercase` | `false` | per l'italiano lascialo false |
-| `background` | `0.55` | alpha del pannello nero, 0-1 |
-| `color` | `#FFFFFF` | colore del testo |
+| `max_words` | `4` | 3–5 is readable range |
+| `max_chars` | `32` | limits card width |
+| `max_duration` | `3.2` | seconds; avoids cards staying too long |
+| `font_size` | `66` | at 1080x1920 already large; code reduces to fit 2 lines |
+| `uppercase` | `false` | keep false for Italian |
+| `background` | `0.55` | black panel alpha, 0–1 |
+| `color` | `#FFFFFF` | text color |
 
-Output: `build/<slug>/captions/c###.mov` (QTRLE alpha), `manifest.json` e `captions.srt`.
-Il testo non e modificabile in Resolve come sottotitolo: le caption sono clip video. L'SRT e la copia
-esportabile per YouTube/TikTok o per un altro editor.
+Output: `build/<slug>/captions/c###.mov` (QTRLE alpha), `manifest.json`, `captions.srt`. Text not editable in Resolve as subtitles: captions are video clips. SRT is exportable copy for YouTube/TikTok or other editor.
 
 ---
 
@@ -117,13 +106,13 @@ esportabile per YouTube/TikTok o per un altro editor.
   "duration": 2.1,
   "layer": "base",
   "kind": "screenshot",
-  "intent": "Screenshot del profilo SpaceHey del 2005, pan da sinistra a destra",
+  "intent": "SpaceHey 2005 profile screenshot, pan left to right",
   "suggest": {
-    "primary": "media/screenshots/spacehey-profilo-2005.png",
+    "primary": "media/screenshots/spacehey-profile-2005.png",
     "alternatives": [
       "media/screenshots/spacehey-home.png"
     ],
-    "why": "La frase descrive il profilo personalizzabile: e la feature che lo distingueva da MySpace."
+    "why": "The phrase describes the customizable profile: the feature that set it apart from MySpace."
   },
   "animation": "pan-lr",
   "zoom": 1.0,
@@ -131,117 +120,106 @@ esportabile per YouTube/TikTok o per un altro editor.
   "blend": "normal",
   "transition_in": { "type": "cut" },
   "sfx": [
-    { "file": "media/sfx/transizione-1.wav", "at": 0.0, "gain_db": -12 }
+    { "file": "media/sfx/transition-1.wav", "at": 0.0, "gain_db": -12 }
   ],
   "text": null
 }
 ```
 
-### Campi
+### Fields
 
-| Campo | Tipo | Obbligatorio | Vincoli |
+| Field | Type | Required | Constraints |
 |---|---|---|---|
-| `id` | string | si | univoco, `s01`... |
-| `start` | number | si | >= 0, secondi nel tempo pulito |
-| `duration` | number | si | > 0 |
-| `layer` | enum | si | `base` o `overlay` |
-| `source` | enum | no | `broll` (default) o `face` (talking head gia tagliato) |
-| `kind` | enum | si | `clip`, `image`, `logo`, `screenshot`, `text`, `ui` |
-| `intent` | string | si | >= 8 caratteri, specifico |
-| `suggest.primary` | string | si | percorso esistente **oppure** `?descrizione` |
-| `suggest.alternatives` | array | no | stessa regola |
-| `suggest.why` | string | si | >= 15 caratteri, spiega la scelta |
-| `animation` | enum | si | vedi sotto |
-| `zoom` | number | no | 1.0 = nessuno. Transform statico (`ZoomX`/`ZoomY`) |
-| `opacity` | number | no | 0–100, default 100. Utile per overlay |
+| `id` | string | yes | unique, `s01`... |
+| `start` | number | yes | >= 0, seconds in clean time |
+| `duration` | number | yes | > 0 |
+| `layer` | enum | yes | `base` or `overlay` |
+| `source` | enum | no | `broll` (default) or `face` (talking head already cut) |
+| `kind` | enum | yes | `clip`, `image`, `logo`, `screenshot`, `text`, `ui` |
+| `intent` | string | yes | >= 8 chars, specific |
+| `suggest.primary` | string | yes | existing path **or** `?description` |
+| `suggest.alternatives` | array | no | same rule |
+| `suggest.why` | string | yes | >= 15 chars, explains choice |
+| `animation` | enum | yes | see below |
+| `zoom` | number | no | 1.0 = none. Static transform (`ZoomX`/`ZoomY`) |
+| `opacity` | number | no | 0–100, default 100. Useful for overlay |
 | `blend` | enum | no | `normal`, `add`, `multiply`, `screen`, `overlay` |
 | `transition_in` | object | no | `{ "type": "...", "duration": 0.3 }` |
 | `sfx` | array | no | `file`, `at`, `gain_db` |
-| `text` | string/null | solo `kind: text` | il testo da mostrare |
+| `text` | string/null | only `kind: text` | text to display |
 
-### Enumerazioni
+### Enumerations
 
 **layer**
 
-- `base` → V1, copre il voiceover
-- `overlay` → V2, sopra un base, con alpha
+- `base` → V1, covers voiceover
+- `overlay` → V2, over a base, with alpha
 
 **source**
 
-- `broll` (default) → il normale segnaposto da sostituire
-- `face` → talking head gia registrato: `placeholders` taglia `build/<slug>/vo_clean.mp4` in
-  `build/<slug>/aroll/<id>_face.mp4` e lo mette su V1. Richiede `layer: "base"`, `kind: "clip"` e
-  `animation: "static"`; il clip non va sostituito. Serve `render-audio --video`.
-  Il campo `suggest` resta obbligatorio per documentare lo slot, ma il file suggerito non viene usato:
-  scrivi `"?la tua faccia, gia tagliata dal video"` e spiega nel `why` perche li si vede il volto.
+- `broll` (default) → normal placeholder to replace
+- `face` → talking head already recorded: `placeholders` cuts `build/<slug>/vo_clean.mp4` into `build/<slug>/aroll/<id>_face.mp4` and puts on V1. Requires `layer: "base"`, `kind: "clip"` and `animation: "static"`; clip must not be replaced. `suggest` still required for documentation, but suggested file isn't used: write `"?your face, already cut from video"` and explain in `why` why face appears here.
 
-**face_fit** (top-level, solo talking head)
+**face_fit** (top-level, talking head only)
 
-| valore | effetto | quando |
+| value | effect | when |
 |---|---|---|
-| `crop` | riempie 1080x1920 tagliando i lati | default; video orizzontale con volto centrale |
-| `fit` | letterbox, niente tagli | volto o testo che non puoi tagliare, video gia verticale con margini |
+| `crop` | fills 1080x1920 cropping sides | default; horizontal video with centered face |
+| `fit` | letterbox, no cropping | face or text you can't crop, already vertical with margins |
 
-Se il volto non e centrato, usa `crop` e sposta il clip in Resolve con Transform: il file A-roll e
-comunque generato a 1080x1920.
+If face isn't centered, use `crop` and reposition in Resolve with Transform: A-roll file is still generated at 1080x1920.
 
-Le tracce V3 `TRANSITIONS` e V4 `CAPTIONS` vengono aggiunte dallo script Lua solo se ci sono
-transizioni automatiche o caption. Non sono slot: non metterle nello shotlist.
+Tracks V3 `TRANSITIONS` and V4 `CAPTIONS` are added by Lua script only if there are automatic transitions or captions. They are not slots: don't put them in shotlist.
 
 **kind**
 
-| valore | colore | significato |
+| value | color | meaning |
 |---|---|---|
-| `clip` | blu | video in movimento |
-| `image` | verde | immagine statica |
-| `logo` | arancione | logo, con alpha |
-| `screenshot` | viola | sito, app, UI |
-| `text` | giallo | cartello |
-| `ui` | rosa | elemento grafico/HUD |
+| `clip` | blue | moving video |
+| `image` | green | static image |
+| `logo` | orange | logo with alpha |
+| `screenshot` | purple | website, app, UI |
+| `text` | yellow | title card |
+| `ui` | pink | graphic element/HUD |
 
 **animation**
 
-| valore | effetto | quando |
+| value | effect | when |
 |---|---|---|
-| `static` | fermo | gameplay gia movimentato |
-| `push-in-slow` | zoom 1.0 → 1.16 | immagini, momenti importanti |
-| `pull-out-slow` | zoom 1.16 → 1.0 | chiusura di un concetto |
-| `push-in-fast` | zoom rapido a inizio slot | logo, reveal |
-| `pan-lr` | panoramica sinistra → destra | screenshot larghi |
-| `pan-rl` | panoramica destra → sinistra | screenshot, alternativa |
-| `drift-up` | leggero movimento verso l'alto | immagini verticali |
+| `static` | still | gameplay already dynamic |
+| `push-in-slow` | zoom 1.0 → 1.16 | images, important moments |
+| `pull-out-slow` | zoom 1.16 → 1.0 | closing a concept |
+| `push-in-fast` | fast zoom at slot start | logo, reveal |
+| `pan-lr` | pan left → right | wide screenshots |
+| `pan-rl` | pan right → left | screenshots, alternative |
+| `drift-up` | slight upward movement | vertical images |
 
 **blend**
 
-| valore | effetto | uso |
+| value | effect | use |
 |---|---|---|
-| `normal` | normale | default |
-| `screen` | schiarisce | scanline, light leak, loghi chiari |
-| `add` | somma | bagliori, particelle |
-| `multiply` | moltiplica | ombre, texture scure |
-| `overlay` | contrasto | grana, texture |
+| `normal` | normal | default |
+| `screen` | lightens | scanlines, light leaks, light logos |
+| `add` | adds | glows, particles |
+| `multiply` | multiplies | shadows, dark textures |
+| `overlay` | contrast | grain, textures |
 
-Viene applicato come `CompositeMode` sul clip. Se il blend non serve, lascia `normal`.
+Applied as `CompositeMode` on clip. If blend not needed, leave `normal`.
 
 **transition_in.type**
 
 `cut`, `cross-dissolve`, `dip-to-black`, `glitch`, `whip-pan`, `flash`
 
-| tipo | automatico | native* | effetto |
+| type | automatic | native* | effect |
 |---|---|---|---|
-| `cut` | si | no | nessun overlay, taglio netto |
-| `glitch` | si | no | bande RGB/scanline per 0.2-0.8s sul taglio |
-| `flash` | si | no | lampo bianco |
-| `dip-to-black` | si | **si** | buio e ritorno (nativo se `native_transitions: true`) |
-| `whip-pan` | si | no | strisce di movimento orizzontali |
-| `cross-dissolve` | **no** | **si** | vera dissolvenza tra clip (nativa se `native_transitions: true`) |
+| `cut` | yes | no | hard cut |
+| `glitch` | yes | no | RGB/scanline bands for 0.2–0.8s on cut |
+| `flash` | yes | no | white flash |
+| `dip-to-black` | yes | **yes** | fade to black and back (native if `native_transitions: true`) |
+| `whip-pan` | yes | no | horizontal motion streaks |
+| `cross-dissolve` | **no** | **yes** | real dissolve between clips (native if `native_transitions: true`) |
 
-* `native` = transizione vera di Resolve (non overlay). Richiede `native_transitions: true` + `animation_mode: fusion` + handle nei segnaposto (`transition_handle`). Se gli handle non bastano, fallback all'overlay con avviso.
-
-Gli automatici diventano overlay alpha in `build/<slug>/transitions/`, messi su V3 a cavallo del
-taglio. **Restano anche dopo `Replace Selected Clip`**, perche non sono dentro il segnaposto.
-`duration` e opzionale (default 0.4s, limitata a 0.2-0.8s e alla durata dello slot).
-Usali solo sui punti di svolta: 2-4 per Short, non su ogni taglio.
+* `native` = real Resolve transition (not overlay). Requires `native_transitions: true` + `animation_mode: fusion` + handles in placeholders (`transition_handle`). If handles insufficient, falls back to overlay with warning.
 
 **sfx**
 
@@ -249,21 +227,21 @@ Usali solo sui punti di svolta: 2-4 per Short, non su ogni taglio.
 { "file": "media/sfx/whoosh-2.wav", "at": 0.4, "gain_db": -10 }
 ```
 
-- `at` e relativo all'inizio dello slot (secondi)
-- deve stare dentro la durata dello slot
-- `gain_db` e opzionale, default 0
+- `at` is relative to slot start (seconds)
+- must be within slot duration
+- `gain_db` optional, default 0
 
 ---
 
-## Esempio talking head (2 slot)
+## Talking Head Example (2 slots)
 
 ```json
 {
-  "project": "mia-faccia",
-  "title": "Ho provato per 30 giorni...",
+  "project": "my-face",
+  "title": "I Tried This for 30 Days...",
   "format": { "width": 1080, "height": 1920, "fps": 30 },
   "style": "clean",
-  "voiceover": "build/mia-faccia/vo_clean.wav",
+  "voiceover": "build/my-face/vo_clean.wav",
   "voiceover_duration": 4.8,
   "face_fit": "crop",
   "bgm": null,
@@ -276,11 +254,11 @@ Usali solo sui punti di svolta: 2-4 per Short, non su ogni taglio.
       "layer": "base",
       "source": "face",
       "kind": "clip",
-      "intent": "Talking head: gancio, guardo in camera e dico la promessa del video",
+      "intent": "Talking head: hook, looking at camera stating video promise",
       "suggest": {
-        "primary": "?la tua faccia, gia tagliata dal video",
+        "primary": "?your face, already cut from video",
         "alternatives": [],
-        "why": "Il gancio personale funziona se lo spettatore vede la faccia e sente il tono."
+        "why": "Personal hook works if viewer sees face and hears tone."
       },
       "animation": "static",
       "zoom": 1.0,
@@ -294,11 +272,11 @@ Usali solo sui punti di svolta: 2-4 per Short, non su ogni taglio.
       "duration": 2.2,
       "layer": "base",
       "kind": "clip",
-      "intent": "B-roll: il risultato di cui parlo, ripresa dal mio footage",
+      "intent": "B-roll: the result I'm talking about, from my footage",
       "suggest": {
-        "primary": "?clip tuo del risultato",
+        "primary": "?your clip of the result",
         "alternatives": [],
-        "why": "Quando arriva il dato concreto, lascia la faccia e mostra la prova."
+        "why": "When the concrete data arrives, leave face and show proof."
       },
       "animation": "static",
       "zoom": 1.05,
@@ -310,20 +288,19 @@ Usali solo sui punti di svolta: 2-4 per Short, non su ogni taglio.
 }
 ```
 
-Prima di questo shotlist servono `render-audio --video` e `vo_clean.mp4`. `placeholders` crea
-`build/mia-faccia/aroll/s01_face.mp4`; lo slot s02 resta un segnaposto da sostituire.
+Before this shotlist you need `render-audio --video` and `vo_clean.mp4`. `placeholders` creates `build/my-face/aroll/s01_face.mp4`; slot s02 remains a placeholder to replace.
 
 ---
 
-## Esempio completo (4 slot)
+## Complete Example (4 slots)
 
 ```json
 {
-  "project": "esempio-spacehey",
-  "title": "Cosa sono questi social che NESSUNO conosce?",
+  "project": "example-spacehey",
+  "title": "What Are These Social Networks NOBODY Knows?",
   "format": { "width": 1080, "height": 1920, "fps": 30 },
   "style": "frutiger-aero",
-  "voiceover": "build/esempio-spacehey/vo_clean.wav",
+  "voiceover": "build/example-spacehey/vo_clean.wav",
   "voiceover_duration": 9.0,
   "bgm": { "file": "media/bgm/y2k-loop.mp3", "gain_db": -26, "loop": true },
   "captions": {
@@ -341,11 +318,11 @@ Prima di questo shotlist servono `render-audio --video` e `vo_clean.mp4`. `place
       "duration": 2.0,
       "layer": "base",
       "kind": "screenshot",
-      "intent": "Home di SpaceHey nel 2005, sfondo azzurro e profilo personalizzato",
+      "intent": "SpaceHey home in 2005, blue bg and customizable profile",
       "suggest": {
         "primary": "media/screenshots/spacehey-home-2005.png",
-        "alternatives": ["media/screenshots/spacehey-profilo.png"],
-        "why": "Il gancio e la domanda: devi mostrare subito la cosa di cui nessuno parla."
+        "alternatives": ["media/screenshots/spacehey-profile.png"],
+        "why": "Hook is the question: must show immediately the thing nobody talks about."
       },
       "animation": "push-in-slow",
       "zoom": 1.0,
@@ -359,11 +336,11 @@ Prima di questo shotlist servono `render-audio --video` e `vo_clean.mp4`. `place
       "duration": 3.0,
       "layer": "base",
       "kind": "clip",
-      "intent": "Screen recording: scroll del profilo, musica che parte dal player",
+      "intent": "Screen recording: profile scroll, music starts from player",
       "suggest": {
-        "primary": "media/clips/spacehey/scroll-profilo.mp4",
-        "alternatives": ["?registrazione tua dello scroll"],
-        "why": "SpaceHey si capisce usandolo: il movimento mostra le funzioni meglio di una foto."
+        "primary": "media/clips/spacehey/scroll-profile.mp4",
+        "alternatives": ["?your scroll recording"],
+        "why": "SpaceHey is understood by using it: movement shows features better than photo."
       },
       "animation": "static",
       "zoom": 1.0,
@@ -377,11 +354,11 @@ Prima di questo shotlist servono `render-audio --video` e `vo_clean.mp4`. `place
       "duration": 2.5,
       "layer": "base",
       "kind": "logo",
-      "intent": "Logo SpaceHey su fondo cielo, reveal con zoom",
+      "intent": "SpaceHey logo on sky background, reveal with zoom",
       "suggest": {
-        "primary": "?logo SpaceHey (screenshot del sito, ritagliato da te)",
+        "primary": "?SpaceHey logo (screenshot from site, cropped by you)",
         "alternatives": [],
-        "why": "Nomini la piattaforma: il logo chiude il primo blocco e fissa il nome."
+        "why": "You name the platform: logo closes first block and fixes the name."
       },
       "animation": "push-in-fast",
       "zoom": 1.0,
@@ -395,17 +372,17 @@ Prima di questo shotlist servono `render-audio --video` e `vo_clean.mp4`. `place
       "duration": 1.5,
       "layer": "overlay",
       "kind": "text",
-      "intent": "Cartello: 'esiste dal 2003'",
+      "intent": "Title card: 'exists since 2003'",
       "suggest": {
-        "primary": "?testo animato, lo crei in Resolve",
+        "primary": "?animated text, create in Resolve",
         "alternatives": [],
-        "why": "Il dato chiave va letto, non ascoltato di sfuggita."
+        "why": "Key fact must be read, not heard in passing."
       },
       "animation": "static",
       "zoom": 1.0,
       "transition_in": { "type": "cut" },
       "sfx": [],
-      "text": "esiste dal 2003"
+      "text": "exists since 2003"
     }
   ]
 }
@@ -413,35 +390,34 @@ Prima di questo shotlist servono `render-audio --video` e `vo_clean.mp4`. `place
 
 ---
 
-## Errori di validazione comuni
+## Common Validation Errors
 
-| Messaggio | Correzione |
+| Message | Fix |
 |---|---|
-| `file inesistente nell'indice` | il file non e in `media/`. Cambia percorso o metti `?` |
-| `buco nel layer base` | due slot non si toccano: aggiusta `start`/`duration` |
-| `gli slot coprono X ma il voiceover dura Y` | la somma delle durate deve essere Y (tolleranza 0.25s) |
-| `overlay fuori da qualsiasi slot base` | l'overlay deve stare dentro un base |
-| `suggest.why mancante` | scrivi perche hai scelto quel materiale |
-| `animation non valida` | usa uno dei 7 valori |
-| `sfx a X fuori dallo slot` | `at` deve essere < durata |
-| `transition_in.type non valida` | usa `cut`, `cross-dissolve`, `dip-to-black`, `glitch`, `whip-pan`, `flash` |
-| `cross-dissolve resta manuale` | e un avviso: nessun overlay automatico per la dissolvenza |
-| `captions.position non valida` | usa `lower`, `middle` o `upper` |
-| `captions.X non numerico` | controlla i numeri della configurazione caption |
-| `source 'X' non valido` | usa `broll` o `face` |
-| `source=face richiede layer=base` | la faccia e un base, non un overlay |
-| `manca build/<slug>/vo_clean.mp4` | registra in video e lancia `render-audio --video` |
-| `slot faccia fino a X ma il video dura Y` | i tempi superano il video: ricontrolla `vo_clean.txt` |
+| `file not in index` | file not in `media/`. Change path or use `?` |
+| `hole in base layer` | two slots don't touch: fix `start`/`duration` |
+| `slots cover X but voiceover lasts Y` | sum of durations must = Y (0.25s tolerance) |
+| `overlay outside any base slot` | overlay must be inside a base |
+| `suggest.why missing` | write why you chose that material |
+| `invalid animation` | use one of 7 values |
+| `sfx at X outside slot` | `at` must be < duration |
+| `invalid transition_in.type` | use `cut`, `cross-dissolve`, `dip-to-black`, `glitch`, `whip-pan`, `flash` |
+| `cross-dissolve stays manual` | warning: no auto overlay for dissolve |
+| `invalid captions.position` | use `lower`, `middle`, or `upper` |
+| `captions.X not numeric` | check caption config numbers |
+| `source 'X' invalid` | use `broll` or `face` |
+| `source=face requires layer=base` | face is a base, not overlay |
+| `missing build/<slug>/vo_clean.mp4` | record video and run `render-audio --video` |
+| `face slot up to X but video lasts Y` | times exceed video: recheck `vo_clean.txt` |
 
 ---
 
-## Suggerimenti di regia
+## Direction Tips
 
-- **Hook**: primo slot 1-2s, il materiale piu forte che hai. Non iniziare con un logo.
-- **Pattern**: alterna piani larghi e dettagli. Tre screenshot di fila annoiano.
-- **Numeri**: quando dici un numero, mettilo a schermo (`kind: text`).
-- **Nomi**: quando nomini un gioco/sito, mostra il logo o il titolo.
-- **Fine**: l'ultimo slot puo essere piu lungo (3-4s) e chiudere con una domanda o un logo.
-- **Faccia**: se hai il talking head, non lasciarla per tutto il video. Torna sul volto ogni 20-40s,
-  all'inizio e alla fine; nel mezzo usa b-roll per mostrare quello che dici.
-- **Slot "?"**: se sono piu di 5, il video non e pronto. Dillo all'utente prima di generare.
+- **Hook**: first slot 1–2s, strongest material you have. Don't start with a logo.
+- **Pattern**: alternate wide and detail. Three screenshots in a row bore.
+- **Numbers**: when you say a number, put it on screen (`kind: text`).
+- **Names**: when you name a game/site, show logo or title.
+- **End**: last slot can be longer (3–4s) and close with question or logo.
+- **Face**: if you have talking head, don't keep it all video. Return to face every 20–40s, at start and end; middle uses b-roll to show what you're saying.
+- **`?` slots**: if more than 5, video isn't ready. Tell user before generating.

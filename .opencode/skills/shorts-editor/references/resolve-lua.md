@@ -1,17 +1,14 @@
-# Resolve free + Lua: cosa si puo fare davvero
+# Resolve Free + Lua: What Actually Works
 
-Riferimento per capire cosa lo script generato fa, e cosa l'API non permette.
+Reference to understand what the generated script does, and what the API doesn't allow.
 
 ---
 
-## Contesto
+## Context
 
-Da **Resolve 21.1** lo scripting Python esterno, il menu `Workspace > Scripts` e il server MCP ufficiale
-sono **Studio-only**. La versione free mantiene lo scripting **interno alla Console** (`Workspace > Console`),
-che accetta Lua e Python.
+From **Resolve 21.1**, external Python scripting, `Workspace > Scripts` menu, and official MCP server are **Studio-only**. Free version keeps scripting **inside the Console** (`Workspace > Console`), accepting Lua and Python.
 
-Noi usiamo solo Lua in Console. Nel free, `resolve`, `bmd` e `fusion` sono gia definiti come globali:
-non serve `Resolve()`.
+We use only Lua in Console. In free, `resolve`, `bmd`, `fusion` are already globals: no need for `Resolve()`.
 
 ```lua
 print(resolve:GetVersion())
@@ -19,38 +16,36 @@ print(resolve:GetVersion())
 
 ---
 
-## Cosa fa `build/<slug>/<slug>_build.lua`
+## What `build/<slug>/<slug>_build.lua` Does
 
-1. `project:SetSetting` per frame rate e risoluzione (1080x1920)
-2. crea il bin `SHORTS_<slug>`
-3. importa segnaposto, voiceover, SFX, BGM
-4. crea la timeline `<slug>_v1` (se esiste, la rinomina `_old_HHMMSS`)
-5. aggiunge tracce e le nomina:
-   - V1 `B-ROLL` (segnaposto + clip A-roll della faccia)
+1. `project:SetSetting` for frame rate and resolution (1080x1920)
+2. Creates bin `SHORTS_<slug>`
+3. Imports placeholders, voiceover, SFX, BGM
+4. Creates timeline `<slug>_v1` (if exists, renames to `_old_HHMMSS`)
+5. Adds tracks and names them:
+   - V1 `B-ROLL` (placeholders + A-roll face clips)
    - V2 `OVERLAY`
-   - V3 `TRANSITIONS` (solo se ci sono transizioni automatiche)
-   - V4 `CAPTIONS` (solo se ci sono caption)
+   - V3 `TRANSITIONS` (only if automatic transitions exist)
+   - V4 `CAPTIONS` (only if captions exist)
    - A1 `VOICE`
    - A2 `SFX`
    - A3 `BGM`
-6. appende i clip con `AppendToTimeline({ mediaPoolItem, trackIndex, recordFrame })`;
-   per gli slot faccia aggiunge anche `startFrame = 0` e `endFrame = frames` (bound esclusivo),
-   cosi la durata A-roll e esatta al frame
-7. colora i clip (`SetClipColor`) in base a `kind` (A-roll = `Cyan`)
-8. applica lo `zoom` statico (`SetProperty("ZoomX"/"ZoomY", ...)`)
-9. applica `opacity` (`SetProperty("Opacity", ...)`) e `blend` (`SetProperty("CompositeMode", ...)`)
-10. mette su V3 gli overlay alpha delle transizioni (a cavallo del taglio) e su V4 le card caption
-11. mette in timeline i file audio già preparati da `shorts.py lua`:
-    SFX con il gain cotto, BGM loopata/tagliata con fade in `build/<slug>/audio/`
-12. aggiunge un marker per slot con note multilinea
-13. verifica e stampa il report
+6. Appends clips with `AppendToTimeline({ mediaPoolItem, trackIndex, recordFrame })`;
+   for face slots also adds `startFrame = 0` and `endFrame = frames` (exclusive bound),
+   so A-roll duration is exact to the frame
+7. Colors clips (`SetClipColor`) by `kind` (A-roll = `Cyan`)
+8. Applies static `zoom` (`SetProperty("ZoomX"/"ZoomY", ...)`)
+9. Applies `opacity` (`SetProperty("Opacity", ...)`) and `blend` (`SetProperty("CompositeMode", ...)`)
+10. Puts transition overlays on V3 (straddling cut) and caption cards on V4
+11. Places prepared audio files from `build/<slug>/audio/` (SFX with baked gain, BGM looped/cut with fade)
+12. Adds a marker per slot with multiline notes
+13. Verifies and prints report
 
-> Il volume dei clip **non** è esposto dall'API: per questo il gain viene applicato con ffmpeg
-> prima dell'import. Non cercare `SetProperty("Volume", ...)`: non esiste.
+> Clip volume **is not** exposed by API: gain is applied via ffmpeg before import. Don't look for `SetProperty("Volume", ...)`: it doesn't exist.
 
 ---
 
-## `recordFrame`: la funzione chiave
+## `recordFrame`: The Key Function
 
 ```lua
 timeline:AppendToTimeline({
@@ -58,145 +53,123 @@ timeline:AppendToTimeline({
 })
 ```
 
-`recordFrame` e il frame di timeline in cui parte il clip. Senza, tutto si accoda.
+`recordFrame` is the timeline frame where clip starts. Without it, everything appends.
 
-E disponibile nelle versioni recenti (21.x). Se i clip finiscono tutti a 0, la tua versione e vecchia:
-aggiorna Resolve. Il report finale (`V2: N clip`) aiuta a capirlo.
+Available in recent versions (21.x). If clips all end at 0, your version is old: update Resolve. Final report (`V2: N clip`) helps diagnose.
 
-Per gli slot faccia passiamo anche `startFrame`/`endFrame`: nell'API Resolve **`endFrame` e esclusivo**,
-quindi `endFrame = frames` da una durata di `frames` frame (non `frames - 1`).
+For face slots we also pass `startFrame`/`endFrame`: in Resolve API **`endFrame` is exclusive**, so `endFrame = frames` gives duration of `frames` frames (not `frames - 1`).
 
 ---
 
-## Cosa NON si puo fare dall'API (Resolve free)
+## What You CAN'T Do via API (Resolve Free)
 
-| Cosa | Stato | Alternativa |
+| Thing | Status | Workaround |
 |---|---|---|
-| creare una vera transizione tra due clip | non esposto | overlay alpha su V3 (glitch/flash/dip/whip-pan), gia fatto; `cross-dissolve` manuale |
-| keyframe di Transform/Opacity in Edit | non esposto | template Fusion, o manuale |
-| creare nodi Fusion via script | non documentato | template `.setting` + `ImportFusionComp` |
-| creare una traccia sottotitoli / importare SRT | non esposto nel free | card caption QTRLE su V4 + `captions.srt` |
-| `CreateSubtitlesFromAudio` | Studio/AI-only | caption gia cotte da `shorts.py` |
-| cambiare velocita di un clip | non esposto | manuale |
-| volume/pan audio del clip | non esposto | gain con ffmpeg (già fatto) + Fairlight |
-| testo con font preciso via API | non esposto | Text+ / template |
-| render automatico affidabile | parziale | Deliver page / `90_render_queue.lua` |
+| Create real transition between two clips | not exposed | alpha overlay on V3 (glitch/flash/dip/whip-pan), done; `cross-dissolve` manual |
+| Edit keyframes for Transform/Opacity | not exposed | Fusion template, or manual |
+| Create Fusion nodes via script | undocumented | `.setting` template + `ImportFusionComp` |
+| Create subtitle track / import SRT | not exposed in free | QTRLE caption cards on V4 + `captions.srt` |
+| `CreateSubtitlesFromAudio` | Studio/AI-only | captions already baked by `shorts.py` |
+| Change clip speed | not exposed | manual |
+| Clip audio volume/pan | not exposed | gain via ffmpeg (already done) + Fairlight |
+| Precise text via API | not exposed | Text+ / template |
+| Reliable auto render | partial | Deliver page / `90_render_queue.lua` |
 
-**In Studio 21.1.1** (con `animation_mode: fusion` + `native_transitions: true`):
-- `tlItem:AddFusionComp()` → crea Fusion comp sul clip timeline (animazioni persistono dopo sostituzione)
-- `timelineItem:AddTransition({type="Cross Dissolve", ...})` → transizione nativa cross-dissolve
-- `timelineItem:AddTransition({type="Dip To Color Dissolve", ...})` → transizione nativa dip-to-black
-- `timeline:SetVoiceIsolationState(1, {isEnabled=true, amount=60})` → Voice Isolation su A1
-- `sidechaincompress` in ffmpeg per BGM ducking automatico
+**In Studio 21.1.1** (with `animation_mode: fusion` + `native_transitions: true`):
+- `tlItem:AddFusionComp()` → creates Fusion comp on timeline clip (animations persist after replacement)
+- `timelineItem:AddTransition({type="Cross Dissolve", ...})` → native cross-dissolve
+- `timelineItem:AddTransition({type="Dip To Color Dissolve", ...})` → native dip-to-black
+- `timeline:SetVoiceIsolationState(1, {isEnabled=true, amount=60})` → Voice Isolation on A1
+- `sidechaincompress` in ffmpeg for automatic BGM ducking
 
-Sono invece esposti e li usiamo: `ZoomX`/`ZoomY`, `Opacity`, `CompositeMode` (blend mode).
-
-Quindi lo script costruisce **struttura, timing, audio, caption e transizioni a overlay**. Le uniche
-cose che restano manuali sono la dissolvenza reale (`cross-dissolve`), i movimenti di camera animati
-dopo la sostituzione (template Fusion) e la rifinitura fine di audio/colore.
+We do use and they work: `ZoomX`/`ZoomY`, `Opacity`, `CompositeMode` (blend mode).
 
 ---
 
-## Marker
+## Markers
 
 ```lua
 timeline:AddMarker(frame, "Blue", "s03 SCREENSHOT", note, duration)
 ```
 
-- il colore segue `kind` (gli A-roll sono `Cyan`)
-- `note` contiene: cosa mettere, consigliato, perche, animazione, transizione; per gli slot faccia
-  la prima riga e `A-ROLL/FACCIA: gia tagliata, non sostituire`
-- cliccando il marker in Edit leggi tutto
+- color follows `kind` (A-roll = `Cyan`)
+- `note` contains: what to put, suggested, why, animation, transition; for face slots first line is `A-ROLL/FACE: already cut, don't replace`
+- clicking marker in Edit shows everything
 
-I marker sono la documentazione del montaggio: non cancellarli finche non hai finito.
-
----
-
-## Sostituzione e cosa resta
-
-- **V1/V2 (modalita `baked` default)**: `Replace Selected Clip` (o F11) sostituisce il segnaposto.
-  Zoom/opacity/blend statici restano; i movimenti di camera cotti nel segnaposto no (riapplica
-  il template Fusion).
-- **V1/V2 (modalita `animation_mode: fusion`)**: `Replace Selected Clip` (o F11) sostituisce il
-  segnaposto. Il Fusion comp sul clip timeline **resta** con tutte le keyframe e si applica al
-  nuovo media. Zoom/opacity/blend statici restano. **Non riapplicare** le animazioni.
-- **V1 A-roll**: le clip `source: "face"` sono gia media veri, tagliati da `vo_clean.mp4`. Non vanno
-  sostituite: non hanno una card e il marker lo dice. Un eventuale push-in si applica a mano
-  (template Fusion in `presets/fusion/`).
-- **V3 (modalita `baked`)**: le transizioni sono clip separati (overlay). Non si toccano quando
-  sostituisci V1/V2, quindi glitch/flash/dip/whip-pan restano gia a posto.
-- **V3 (modalita `native_transitions: true`)**: `cross-dissolve` e `dip-to-black` sono transizioni
-  native di Resolve (item separati in track). Non si toccano. glitch/flash/whip-pan restano overlay
-  su V3 e non si toccano.
-- **V4**: le caption sono clip video, non una traccia sottotitoli. Restano sopra il montaggio e non
-  vanno rifatte. Se cambi una parola, rigenera da `words.json` con `shorts.py captions <slug> --force`
-  e rilancia il Lua (la caption e cotta nell'immagine, non e testo editabile in Resolve).
+Markers are the edit documentation: don't delete them until you're done.
 
 ---
 
-## Import e percorsi
+## Replacement and What Survives
 
-Lo script non contiene percorsi assoluti. All'avvio cerca la radice del progetto in:
+- **V1/V2 (default `baked` mode)**: `Replace Selected Clip` (or F11) replaces placeholder. Zoom/opacity/blend static stay; camera moves baked in placeholder don't (re-apply Fusion template).
+- **V1/V2 (`animation_mode: fusion`)**: `Replace Selected Clip` (or F11) replaces placeholder. Fusion comp on timeline clip **stays** with all keyframes and applies to new media. Zoom/opacity/blend static stay. **Don't re-apply** animations.
+- **V1 A-roll**: `source: "face"` clips are already real media, cut from `vo_clean.mp4`. Don't replace: no card, marker says so. Any push-in applies manually (Fusion template in `presets/fusion/`).
+- **V3 (`baked` mode)**: transitions are separate clips (overlays). Untouched when replacing V1/V2, so glitch/flash/dip/whip-pan stay in place.
+- **V3 (`native_transitions: true`)**: `cross-dissolve` and `dip-to-black` are native Resolve transitions (separate track items). Untouched. glitch/flash/whip-pan remain V3 overlays and stay.
+- **V4**: captions are video clips, not subtitle track. Stay above edit and don't need redoing. If you change a word, regenerate from `words.json` with `shorts.py captions <slug> --force` and rerun Lua (caption is baked in image, not editable text in Resolve).
 
-1. `SHORTS_ROOT`, se l'utente l'ha impostata in Console;
+---
+
+## Import and Paths
+
+Script has no absolute paths. On startup it finds project root in:
+
+1. `SHORTS_ROOT`, if user set it in Console;
 2. `~/shorts-studio`;
-3. la cartella corrente.
+3. current directory.
 
-Controlla che esista `build/<slug>/placeholders/manifest.json` e poi costruisce i percorsi dei media
-come `DATA.root .. "/" .. percorso relativo`. Se la cartella è altrove basta:
+Checks `build/<slug>/placeholders/manifest.json` exists, then builds media paths as `DATA.root .. "/" .. relative path`. If folder is elsewhere just:
 
 ```lua
-SHORTS_ROOT = "/percorso/della/cartella"
+SHORTS_ROOT = "/path/to/folder"
 ```
 
-prima di lanciare lo script. Non serve rigenerare niente.
+before running script. No regeneration needed.
 
 ---
 
-## Debug dalla Console
+## Debug from Console
 
-Errori comuni:
+Common errors:
 
 ```text
 attempt to index a nil value (global 'resolve')
 ```
-Stai lanciando lo script da terminale. Trascinalo nella Console.
+Running script from terminal. Drag into Resolve Console.
 
 ```text
 CreateEmptyTimeline → nil
 ```
-Nessun progetto aperto.
+No project open.
 
 ```text
-!! file mancante: /.../s07_ovl.mov
+!! file missing: /.../s07_ovl.mov
 ```
-Manca un segnaposto: `placeholders --force`.
+Missing placeholder: `placeholders --force`.
 
 ```text
 A2 sfx: 0
 ```
-`recordFrame` ignorato o file audio non importati. Controlla la versione e rilancia `scan`.
+`recordFrame` ignored or audio files not imported. Check version and rerun `scan`.
 
 ```text
-V3 transizioni: 0
+V3 transitions: 0
 V4 caption: 0
 ```
-Nessun asset generato: lancia `placeholders --force` (le caption richiedono `words.json` da
-`render-audio`). Se lo shotlist non ha transizioni automatiche o caption, le tracce non vengono create:
-e normale.
+No assets generated: run `placeholders --force` (captions need `words.json` from `render-audio`). If shotlist has no auto transitions or captions, tracks aren't created: normal.
 
 ```text
-[warn] captions saltate: manca build/<slug>/words.json
+[warn] captions skipped: missing build/<slug>/words.json
 ```
-Hai lanciato `placeholders` prima di `render-audio`. Rilancia `render-audio`, poi `placeholders --force`.
+Ran `placeholders` before `render-audio`. Run `render-audio`, then `placeholders --force`.
 
 ```text
-mancano le clip faccia: build/<slug>/vo_clean.mp4 non esiste
+missing face clips: build/<slug>/vo_clean.mp4 not found
 ```
-Hai slot `source: "face"` ma non hai tagliato il video. Lancia
-`render-audio <slug> --video` (con `--normalize` se vuoi) e poi `placeholders --force`.
+Have `source: "face"` slots but didn't cut video. Run `render-audio <slug> --video` (with `--normalize` if wanted) then `placeholders --force`.
 
-Per ispezionare a mano:
+For manual inspection:
 
 ```lua
 local p = resolve:GetProjectManager():GetCurrentProject()
@@ -207,11 +180,11 @@ local tl = p:GetCurrentTimeline()
 
 ---
 
-## Limiti del free da ricordare
+## Free Limits to Remember
 
-- niente Magic Mask, Voice Isolation, speech-to-text nativo
-- niente Python esterno / MCP
-- niente alcuni preset AI
-- il resto (edit, Fusion, Fairlight, color, render 1080p) c'e
+- no Magic Mask, Voice Isolation, speech-to-text native
+- no external Python / MCP
+- no some AI presets
+- rest (edit, Fusion, Fairlight, color, 1080p render) is there
 
-Per un Short a 1080x1920 il free e piu che sufficiente.
+For a 1080x1920 Short, free is more than enough.

@@ -1,33 +1,30 @@
 # Setup
 
-Due sistemi: **macOS** (oggi) e **Nobara Linux** (domani). Il progetto usa solo percorsi relativi,
-quindi si sposta da un computer all'altro senza modifiche.
+Two systems: **macOS** (now) and **Nobara Linux** (later). Project uses only relative paths, so it moves between computers without changes.
 
 ---
 
 ## macOS
 
-### 1. Strumenti
+### 1. Tools
 
 ```bash
-xcode-select --install          # se non l'hai mai fatto
+xcode-select --install          # if never done
 brew install ffmpeg python@3.13
 ```
 
-Verifica:
+Verify:
 
 ```bash
 ffmpeg -version
 /opt/homebrew/opt/python@3.13/bin/python3.13 --version
 ```
 
-> Se il tuo ffmpeg non ha il filtro `drawtext` non è un problema: i segnaposto sono disegnati con
-> Pillow e animati con `zoompan`, che c'è in tutte le build.
+> If your ffmpeg lacks `drawtext` filter it's not a problem: placeholders are drawn with Pillow and animated with `zoompan`, present in all builds.
 
-> **Python 3.15 e faster-whisper non vanno d'accordo**: la libreria `av` non ha ancora i wheel e
-> l'installazione fallisce. Usa Python 3.13 (o 3.12/3.11). Lo script di setup lo fa da solo.
+> **Python 3.15 and faster-whisper don't get along**: library `av` doesn't have wheels yet and install fails. Use Python 3.13 (or 3.12/3.11). Setup script does this automatically.
 
-### 2. Ambiente Python del progetto
+### 2. Project Python Environment
 
 ```bash
 cd ~/shorts-studio
@@ -37,19 +34,18 @@ cd ~/shorts-studio
 .venv/bin/pip install faster-whisper "av<17"
 ```
 
-> `av` 19 ha rimosso un parametro che faster-whisper 1.2 usa ancora. Con `av<17` tutto
-> funziona; lo script di setup lo fa già.
+> `av` 19 removed a parameter faster-whisper 1.2 still uses. With `av<17` everything works; setup script does it already.
 
-Da qui in poi usa sempre `.venv/bin/python` (oppure attiva il venv con `source .venv/bin/activate`).
+From now on always use `.venv/bin/python` (or activate with `source .venv/bin/activate`).
 
-Il modo più semplice è lanciare lo script, che sceglie il Python giusto e installa tutto:
+Easiest way is running the setup script, which picks right Python and installs everything:
 
 ```bash
-./scripts/setup-macos.sh              # faster-whisper incluso
-./scripts/setup-macos.sh --no-whisper # se non vuoi la trascrizione automatica
+./scripts/setup-macos.sh              # includes faster-whisper
+./scripts/setup-macos.sh --no-whisper # if you don't want auto transcription
 ```
 
-Controllo:
+Check:
 
 ```bash
 .venv/bin/python scripts/shorts.py doctor
@@ -57,83 +53,78 @@ Controllo:
 
 ### 3. DaVinci Resolve
 
-Scarica **DaVinci Resolve free** dal sito Blackmagic e installa. Al primo avvio crea un progetto vuoto
-(es. `Shorts`). Non serve altro: lo scripting dalla Console funziona anche nel free.
+Download **DaVinci Resolve free** from Blackmagic site and install. On first launch create an empty project (e.g. `Shorts`). Nothing else needed: Console scripting works on free too.
 
-### 4. Come si usa la Console (importante)
+### 4. How to Use Console (Important)
 
-1. Apri Resolve con un progetto aperto.
+1. Open Resolve with a project open.
 2. Menu **Workspace > Console**.
-3. In basso nella Console c'e un selettore di linguaggio: scegli **Lua**.
-4. Trascina il file `build/<slug>/<slug>_build.lua` dentro la finestra della Console.
-5. Premi **Invio**.
+3. Bottom dropdown: select **Lua**.
+4. Drag `build/<slug>/<slug>_build.lua` into Console window.
+5. Press **Enter**.
 
-La Console non ricorda niente tra una sessione e l'altra: ogni volta che riapri Resolve devi
-ritrascinare lo script. Va bene, e una operazione da 5 secondi.
+Console doesn't remember between sessions: every time you reopen Resolve you must drag script again. It's fine, 5-second operation.
 
-Per un test rapido:
+Quick test:
 
 ```lua
 print(resolve:GetVersion())
 ```
 
-Se stampa la versione, sei a posto.
+If it prints version, you're good.
 
-Caption e transizioni automatiche non richiedono altro software: Pillow disegna le card e ffmpeg
-le codifica in QTRLE con alpha. Le caption usano `build/<slug>/words.json`, quindi vanno generate
-dopo `render-audio`. In Resolve arrivano come clip video su V4 (non come traccia sottotitoli):
-il file `captions.srt` nella stessa cartella e la copia esportabile.
+Captions and automatic transitions need no extra software: Pillow draws cards and ffmpeg encodes QTRLE with alpha. Captions use `build/<slug>/words.json`, so generate after `render-audio`. In Resolve they arrive as video clips on V4 (not subtitle track): `captions.srt` in same folder is exportable copy.
 
-### 5. Script di diagnostica (`scripts/lua/`)
+### 5. Diagnostic Scripts (`scripts/lua/`)
 
-Tre utility indipendenti dai progetti, da trascinare nella Console come qualsiasi altro script:
+Three standalone utilities, drag into Console like any script:
 
-| File | Quando usarlo |
+| File | When to Use |
 |---|---|
-| `00_check.lua` | Sempre, la prima volta. Stampa versione, progetto, timeline, tracce, marker e formati render. Non modifica nulla |
-| `20_fusion_probe.lua` | Solo se vuoi capire se la tua versione free accetta `AddFusionComp`/`ImportFusionComp`. Usa una timeline di prova: crea e cancella una comp sul primo clip di V1 |
-| `90_render_queue.lua` | Per esportare: imposta 1080x1920 H.264 e aggiunge il job. Apri il file e controlla `OUT_DIR` prima di lanciarlo |
+| `00_check.lua` | Always, first time. Prints version, project, timeline, tracks, markers, render formats. Modifies nothing |
+| `20_fusion_probe.lua` | Only if you want to know if your free version accepts `AddFusionComp`/`ImportFusionComp`. Use a test timeline: create and delete a comp on first V1 clip |
+| `90_render_queue.lua` | To export: sets 1080x1920 H.264 and adds job. Open file and check `OUT_DIR` before running |
 
-Se `00_check.lua` non stampa niente, il linguaggio della Console non è **Lua** o non c'è un progetto aperto.
+If `00_check.lua` prints nothing, Console language isn't **Lua** or no project is open.
 
-### 6. Font (consigliati, gratuiti)
+### 6. Fonts (Recommended, Free)
 
-Installa da Google Fonts quelli che ti servono per lo stile scelto (vedi `STYLE.md`):
+Install from Google Fonts those needed for chosen style (see `STYLE.md`):
 
-- **Anton**, **Bebas Neue** — titoli grossi
+- **Anton**, **Bebas Neue** — big titles
 - **VT323**, **Press Start 2P**, **Share Tech Mono** — CRT / PS2
-- **Jost**, **Inter** — Frutiger Aero / pulito
-- **Noto Sans JP** — se usi kanji
+- **Jost**, **Inter** — Frutiger Aero / clean
+- **Noto Sans JP** — if using kanji
 
-Su macOS: doppio click sul `.ttf` → *Installa carattere*.
-Su Nobara: copia in `~/.local/share/fonts/` e lancia `fc-cache -f -v`.
+On macOS: double-click `.ttf` → *Install Font*.
+On Nobara: copy to `~/.local/share/fonts/` and run `fc-cache -f -v`.
 
 ---
 
 ## Nobara Linux
 
-Nobara e gia predisposta per il multimedia. I pacchetti base:
+Nobara is pre-configured for multimedia. Base packages:
 
 ```bash
 sudo dnf install -y ffmpeg ffmpeg-free python3 python3-pip python3-virtualenv
 ```
 
-Se Resolve non parte, mancano quasi sempre queste librerie:
+If Resolve won't start, usually missing these libs:
 
 ```bash
 sudo dnf install -y libxcrypt-compat mesa-libGLU alsa-lib fuse-libs
 ```
 
-Installa **DaVinci Resolve free** con l'installer `.run` di Blackmagic:
+Install **DaVinci Resolve free** with Blackmagic `.run` installer:
 
 ```bash
 chmod +x DaVinci_Resolve_*_Linux.run
 ./DaVinci_Resolve_*_Linux.run
 ```
 
-Resolve finisce in `/opt/resolve/bin/resolve`. La Console e sempre **Workspace > Console**, Lua.
+Resolve ends up in `/opt/resolve/bin/resolve`. Console is always **Workspace > Console**, Lua.
 
-Ambiente Python:
+Python Environment:
 
 ```bash
 cd ~/shorts-studio
@@ -143,79 +134,71 @@ python3 -m venv .venv
 .venv/bin/python scripts/shorts.py doctor
 ```
 
-Note specifiche Linux:
+Linux-specific notes:
 
-- I driver NVIDIA proprietari sono obbligatori per Resolve. Nobara li installa dal suo tool.
-- Se usi Wayland e Resolve si comporta male, avvia la sessione X11.
-- Il percorso dei font per i segnaposto è già gestito: lo script cerca DejaVu/Liberation.
-- Gli script Lua non contengono percorsi assoluti: cercano la cartella in `~/shorts-studio` o nella
-  directory corrente. Se la sposti altrove (o la chiami diversamente), scrivi prima in Console
-  `SHORTS_ROOT = "/percorso/della/cartella"` e poi lancia lo script.
+- NVIDIA proprietary drivers mandatory for Resolve. Nobara installs them via its tool.
+- If on Wayland and Resolve misbehaves, start X11 session.
+- Placeholder font path already handled: script finds DejaVu/Liberation.
+- Lua scripts have no absolute paths: they search in `~/shorts-studio` or current directory. If you move/rename it, write in Console first `SHORTS_ROOT = "/path/to/folder"` then run script.
 
 ---
 
-## Whisper: quale modello
+## Whisper: Which Model
 
-| Modello | Velocita su M1/M2 | Qualita italiano/inglese | Quando |
+| Model | Speed on M1/M2 | Italian/English Quality | When |
 |---|---|---|---|
-| `tiny` | altissima | bassa | test veloci |
-| `base` | alta | media | bozze |
-| `small` | media | buona | **default consigliato** |
-| `medium` | lenta | molto buona | se hai tempo |
-| `large-v3` | molto lenta | ottima | solo se serve |
+| `tiny` | very high | low | quick tests |
+| `base` | high | medium | drafts |
+| `small` | medium | good | **recommended default** |
+| `medium` | slow | very good | if you have time |
+| `large-v3` | very slow | excellent | only if needed |
 
 ```bash
 .venv/bin/python scripts/shorts.py transcribe <slug> --model small --language auto
 ```
 
-La lingua si risolve cosi: `--language` esplicito > `"language"` in `projects/<slug>/project.json` >
-`auto` (rilevamento Whisper). Per un voiceover italiano puoi usare `--language it`, per uno inglese
-`--language en`; con `auto` funzionano entrambi senza cambiare progetto.
+Language resolves as: explicit `--language` > `"language"` in `projects/<slug>/project.json` > `auto` (Whisper detection). For Italian voiceover use `--language it`, for English `--language en`; `auto` works for both without changing project.
 
-Se registri in **video** (talking head), metti l'mp4/mov in `media/voiceover/raw/`: Whisper usa la
-traccia audio e il resto della pipeline funziona uguale. In quel caso lancia
-`render-audio <slug> --video` (oltre a `--normalize` se vuoi): oltre alla voce tagliata prepara
-`vo_clean.mp4` e le clip A-roll. Serve solo ffmpeg con `libx264`, che `doctor` controlla.
+If recording **video** (talking head), put mp4/mov in `media/voiceover/raw/`: Whisper uses audio track and rest of pipeline works same. Then run `render-audio <slug> --video` (plus `--normalize` if you want): besides cut voice prepares `vo_clean.mp4` and A-roll clips. Only needs ffmpeg with `libx264`, which `doctor` checks.
 
-La prima esecuzione scarica il modello (200-500 MB) in `~/.cache/huggingface`.
-Su Nobara con GPU NVIDIA puoi usare `--device cuda --compute-type float16` per andare molto piu veloce.
+First run downloads model (200–500 MB) to `~/.cache/huggingface`. On Nobara with NVIDIA GPU use `--device cuda --compute-type float16` for much faster speed.
 
 ---
 
-## Se non vuoi installare Whisper
+## If You Don't Want to Install Whisper
 
-Puoi comunque usare tutto il resto:
+You can still use everything else:
 
-1. Trascrivi con lo strumento che preferisci (anche a mano).
-2. Crea `build/<slug>/transcript.json` nel formato minimo:
+1. Transcribe with your preferred tool (even manually).
+2. Create `build/<slug>/transcript.json` in minimal format:
 
 ```json
 {
-  "source": "media/voiceover/raw/voce.wav",
+  "source": "media/voiceover/raw/voice.wav",
   "language": "it",
   "duration": 143.2,
   "segments": [
     {
-      "id": 0, "start": 0.0, "end": 3.2, "text": "Ciao ragazzi",
+      "id": 0, "start": 0.0, "end": 3.2, "text": "Hello guys",
       "words": [
-        {"word": "Ciao", "start": 0.0, "end": 0.35, "probability": 1.0},
-        {"word": "ragazzi", "start": 0.4, "end": 0.9, "probability": 1.0}
+        {"word": "Hello", "start": 0.0, "end": 0.35, "probability": 1.0},
+        {"word": "guys", "start": 0.4, "end": 0.9, "probability": 1.0}
       ]
     }
   ]
 }
 ```
 
-3. Da li in poi `roughcut`, `render-audio`, `validate`, `placeholders`, `lua` funzionano identici.
+3. From there `roughcut`, `render-audio`, `validate`, `placeholders`, `lua` work identical.
 
 ---
 
-## Dove finiscono i file
+## Where Files End Up
 
-Niente cloud, niente cache esterna:
+No cloud, no external cache:
 
-- modelli Whisper: `~/.cache/huggingface`
-- segnaposto e render: `build/<slug>/`
-- media originali: `media/` (meglio se su un disco esterno, sono grossi)
+- Whisper models: `~/.cache/huggingface`
+- Placeholders & renders: `build/<slug>/`
+- Original media: `media/` (better on external drive, they're large)
 
-Backup minimo: `projects/` + `media/` + `build/<slug>/shotlist.json`. Il resto e rigenerabile.
+Minimal backup: `projects/` + `media/` + `build/<slug>/shotlist.json`. Rest is regenerable.

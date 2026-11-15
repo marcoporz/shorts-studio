@@ -1,63 +1,63 @@
-# Audio: nomi, cue, volumi
+# Audio: Names, Cues, Volumes
 
 ---
 
-## Nomi fissi degli effetti
+## Fixed Effect Names
 
-Metti i file in `media/sfx/` con questi nomi (minuscolo, trattino, numero progressivo).
-Puoi aggiungerne altri: basta che il nome sia stabile e descrittivo.
+Put files in `media/sfx/` with these names (lowercase, hyphen, progressive number).
+You can add more: just keep names stable and descriptive.
 
-### Transizioni
+### Transitions
 
-| File | Uso |
+| File | Use |
 |---|---|
-| `transizione-1.wav` | tendina / cambio scena |
-| `transizione-2.wav` | variante piu corta |
-| `transizione-3.wav` | variante aggressiva |
-| `whoosh-1.wav` | passaggio veloce |
-| `whoosh-2.wav` | passaggio morbido |
+| `transizione-1.wav` | scene change / cut |
+| `transizione-2.wav` | shorter variant |
+| `transizione-3.wav` | aggressive variant |
+| `whoosh-1.wav` | fast pass |
+| `whoosh-2.wav` | soft pass |
 
-### Impatto
+### Impact
 
-| File | Uso |
+| File | Use |
 |---|---|
-| `impatto-1.wav` | colpo secco, hook |
-| `impatto-2.wav` | colpo piu profondo |
-| `sub-drop-1.wav` | caduta dei bassi, rivelazione |
-| `stab-1.wav` | accento drammatico |
-| `riser-1.wav` | tensione crescente prima di un reveal |
+| `impatto-1.wav` | dry hit, hook |
+| `impatto-2.wav` | deeper hit |
+| `sub-drop-1.wav` | bass drop, revelation |
+| `stab-1.wav` | dramatic accent |
+| `riser-1.wav` | rising tension before reveal |
 
-### Interfaccia / digitale
+### UI / Digital
 
-| File | Uso |
+| File | Use |
 |---|---|
-| `ui-click-1.wav` | click, selezione |
-| `pop-1.wav` | comparsa di un elemento |
-| `typing-1.wav` | testo che appare |
-| `glitch-1.wav` | errore digitale, CRT |
-| `crt-on.wav` | accensione monitor |
-| `crt-off.wav` | spegnimento monitor |
-| `ps2-boot.wav` | avvio console |
+| `ui-click-1.wav` | click, selection |
+| `pop-1.wav` | element appearance |
+| `typing-1.wav` | text appearing |
+| `glitch-1.wav` | digital error, CRT |
+| `crt-on.wav` | monitor power on |
+| `crt-off.wav` | monitor power off |
+| `ps2-boot.wav` | console startup |
 
-### Altro
+### Other
 
-| File | Uso |
+| File | Use |
 |---|---|
 | `bubble-1.wav` | Frutiger Aero |
-| `risata-1.wav` | momento comico |
-| `record-scratch-1.wav` | stop, "aspetta" |
+| `risata-1.wav` | comedic moment |
+| `record-scratch-1.wav` | stop, "wait" |
 
 ---
 
-## Regole di piazzamento
+## Placement Rules
 
-- Un SFX va **sul taglio**, non a meta del clip.
-- Il picco dell'effetto deve coincidere con il primo frame del nuovo clip.
-- Massimo **1 SFX ogni 2-3 secondi**. Oltre, il video diventa una demo di libreria audio.
-- Non mettere SFX sotto la voce piena: scegli i momenti di pausa o le prime sillabe.
-- Lo stesso SFX ripetuto 10 volte stanca: alterna le varianti.
+- One SFX goes **on the cut**, not mid-clip.
+- Effect peak must hit the first frame of the new clip.
+- Max **1 SFX every 2–3 seconds**. More turns video into audio library demo.
+- Don't put SFX under full voice: pick pauses or first syllables.
+- Same SFX repeated 10 times gets tiring: alternate variants.
 
-Nel shotlist:
+In shotlist:
 
 ```json
 "sfx": [
@@ -65,64 +65,66 @@ Nel shotlist:
 ]
 ```
 
-`at` e in secondi dall'inizio dello slot.
+`at` is seconds from slot start.
 
 ---
 
-## Volumi di partenza
+## Starting Volumes
 
-| Traccia | Picco | Note |
+| Track | Peak | Notes |
 |---|---|---|
-| Voce (A1) | -6 / -3 dB | normalizzata a -16 LUFS |
-| SFX (A2) | -15 / -10 dB | sotto la voce, sopra la BGM |
-| BGM (A3) | -25 / -20 dB | deve "esserci", non competere |
+| Voice (A1) | -6 / -3 dB | normalized to -16 LUFS |
+| SFX (A2) | -15 / -10 dB | under voice, above BGM |
+| BGM (A3) | -25 / -20 dB | must "be there", not compete |
 
-Se usi `gain_db` nello shotlist, lo script crea una copia del file con il gain già applicato
-(`build/<slug>/audio/`) e mette quella in timeline: i file originali in `media/` non vengono toccati.
-L'API di Resolve non espone il volume dei clip, quindi questa è l'unica strada automatica.
+If you use `gain_db` in shotlist, script creates a copy with gain baked
+(`build/<slug>/audio/`) and puts that in timeline: originals in `media/` untouched.
+Resolve API doesn't expose clip volume, so this is the only automatic way.
 
-La BGM viene anche loopata, tagliata alla durata e con fade in/out nello stesso passaggio.
-Poi rifinisci a orecchio: i numeri sono un punto di partenza, non una legge.
+BGM also gets looped, cut to duration, fade in/out in same pass.
+Then fine-tune by ear: numbers are starting point, not law.
 
 ---
 
-## Ducking della BGM
+## BGM Ducking
 
-Obiettivo: la musica scende di 6-9 dB quando parli.
+Goal: music drops 6–9 dB when you speak.
 
-Modo veloce in Fairlight:
+Quick Fairlight way:
 
-1. Seleziona la traccia BGM.
-2. Attiva l'automazione del volume (tasto `A` o il pulsante nella track head).
-3. Metti un keyframe prima di ogni frase e uno dopo, con -6/-9 dB.
-4. Fade in all'inizio (1-2s) e fade out alla fine (2s).
+1. Select BGM track.
+2. Enable volume automation (key `A` or button in track head).
+3. Place keyframe before each phrase and after, at -6/-9 dB.
+4. Fade in at start (1–2s) and fade out at end (2s).
 
-Modo alternativo: sidechain non disponibile nel free in modo semplice, quindi vai di keyframe.
-Per uno Short da 60s sono 10-15 keyframe: 2 minuti di lavoro.
+Alternative: sidechain not simply available in free, so keyframe it.
+For a 60s Short: 10–15 keyframes = 2 minutes work.
+
+**With Studio 21.1.1 + `bgm.duck: true`**: automatic via `sidechaincompress` in ffmpeg (voice as sidechain, ratio ~\|duck_db\|*0.9). If filter fails, falls back to standard mix and warns.
 
 ---
 
 ## Loudness
 
-- YouTube normalizza a circa **-14 LUFS integrated**.
-- Se il master e troppo alto, il video viene abbassato e perde impatto.
-- Se e troppo basso, viene alzato e il rumore sale.
+- YouTube normalizes to ~**-14 LUFS integrated**.
+- If master too high, video gets lowered and loses impact.
+- If too low, gets raised and noise rises.
 
-Controllo: Fairlight > Loudness Meter, oppure:
+Check: Fairlight > Loudness Meter, or:
 
 ```bash
 ffmpeg -i export.mp4 -af loudnorm=print_format=summary -f null -
 ```
 
-Mira a **-14 LUFS** con true peak **-1 dB**.
+Target **-14 LUFS** with true peak **-1 dB**.
 
 ---
 
-## BGM: dove trovarla gratis
+## BGM: Where to Find Free
 
-- YouTube Audio Library (dentro YouTube Studio)
-- Free Music Archive (controlla la licenza)
+- YouTube Audio Library (inside YouTube Studio)
+- Free Music Archive (check license)
 - ccMixter
-- produzioni tue
+- your own productions
 
-Evita tutto cio che non ha una licenza chiara: e il modo piu rapido per perdere un video.
+Avoid anything without clear license: fastest way to lose a video.

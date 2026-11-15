@@ -12,128 +12,166 @@ Transform voiceover or talking-head footage (Italian/English) into a **fully edi
 
 **Keywords:** AI video editing, AI editing, video automation, DaVinci Resolve scripting, Shorts creator, talking-head editor, local-first, Whisper transcription, Lua scripting
 
-L'AI ascolta il voiceover **oppure il tuo talking head** (italiano o inglese), toglie errori e pause,
-progetta il montaggio, costruisce in Resolve una timeline di **segnaposto gia animati** con marker che
-dicono cosa mettere in ogni slot. Se registri in video, **la tua faccia viene tagliata e montata
-automaticamente** negli slot A-roll: non devi sostituirla. Tu sostituisci solo i media mancanti.
+---
 
-Gia fatto dallo script: **A-roll della faccia** se registri in video, **caption** statiche e
-leggibili, **transizioni** automatiche sui punti di svolta, **SFX** e **BGM**. Le caption e le
-transizioni stanno su tracce separate, quindi restano anche dopo la sostituzione dei segnaposto. `cross-dissolve`, animazioni di camera e mix fine restano
-manuali (limiti dell'API free, spiegati in `WORKFLOW.md`).
+The AI listens to your voiceover **or your talking head** (Italian or English), removes errors and pauses, plans the edit, builds a timeline in Resolve with **animated placeholders and markers** explaining what goes in each slot. If you record on video, **your face is automatically cut and placed** in A-roll slots: you don't replace it. You only replace the missing media.
 
-Niente SaaS, niente abbonamenti, niente upload dei tuoi file su servizi esterni.
+Already done by the script: **A-roll face** if you record on video, **static captions** (readable, lower third), **transitions** on key moments, **SFX** and **BGM**. Captions and transitions stay on separate tracks, so they survive placeholder replacement. `cross-dissolve`, camera animations, and fine mix remain manual (free API limits, explained in `WORKFLOW.md`).
+
+No SaaS, no subscriptions, no uploads of your files to external services.
 
 ---
 
-## Cosa serve
+## Requirements
 
-| Pezzo | Versione | Costo |
+| Component | Version | Cost |
 |---|---|---|
-| OpenCode | V2 | gratis |
-| Modello per codice/Lua | `opencode/deepseek-v4.1-flash-free` | $0 |
-| Modello per guardare frame | `opencode/nemotron-3.5-super-vl-free` | $0 |
+| OpenCode | V2 | free |
+| Code/Lua model | `opencode/deepseek-v4.1-flash-free` | $0 |
+| Frame viewing model | `opencode/nemotron-3.5-super-vl-free` | $0 |
 | DaVinci Resolve | free (21.x) | $0 |
-| ffmpeg + ffprobe | 6.x o superiore | $0 |
-| Python | 3.11–3.13 (3.13 consigliato) | $0 |
-| Pillow | per i segnaposto | $0 |
-| faster-whisper | installato dal setup, per la trascrizione | $0 |
+| ffmpeg + ffprobe | 6.x+ | $0 |
+| Python | 3.11–3.13 (3.13 recommended) | $0 |
+| Pillow | for placeholders | $0 |
+| faster-whisper | installed by setup, for transcription | $0 |
 
-> Resolve **free** supporta lo scripting solo dalla Console interna (`Workspace > Console`, linguaggio Lua).
-> Python esterno, MCP e Scripts menu sono Studio-only da Resolve 21.1. Questo progetto usa solo la Console.
+> Resolve **free** only supports scripting from the internal Console (`Workspace > Console`, Lua language).
+> External Python, MCP, and Scripts menu are Studio-only from Resolve 21.1. This project uses only the Console.
 
 ---
 
-## Avvio rapido
+## Quick Start
 
 ```bash
 cd ~/shorts-studio
-./scripts/setup-macos.sh                  # una volta sola (su Nobara: setup-nobara.sh)
+./scripts/setup-macos.sh                  # one-time (on Nobara: setup-nobara.sh)
 .venv/bin/python scripts/shorts.py doctor
 
-# metti il voiceover in media/voiceover/raw/ e i materiali in media/clips|images|logos|screenshots
-# se registri in video (talking head) va bene lo stesso: metti l'mp4/mov nella stessa cartella
-.venv/bin/python scripts/shorts.py init fallout-3-vs-new-vegas --language auto
+# put voiceover in media/voiceover/raw/ and assets in media/clips|images|logos|screenshots
+# if you record on video (talking head), put mp4/mov in the same folder
+.venv/bin/python scripts/shorts.py init my-video --language auto
 .venv/bin/python scripts/shorts.py scan
-.venv/bin/python scripts/shorts.py transcribe fallout-3-vs-new-vegas --language auto
-.venv/bin/python scripts/shorts.py roughcut fallout-3-vs-new-vegas
-.venv/bin/python scripts/shorts.py render-audio fallout-3-vs-new-vegas --normalize
-# se registri in video (talking head), usa questa al posto della precedente:
-.venv/bin/python scripts/shorts.py render-audio fallout-3-vs-new-vegas --normalize --video
+.venv/bin/python scripts/shorts.py transcribe my-video --language auto
+.venv/bin/python scripts/shorts.py roughcut my-video
+.venv/bin/python scripts/shorts.py render-audio my-video --normalize
+# if recording on video (talking head), use this instead:
+.venv/bin/python scripts/shorts.py render-audio my-video --normalize --video
 ```
 
-`--language auto` rileva la lingua; puoi forzare `it` o `en` (vale anche in `project.json` con
-`"language": "it"`). Il resto della pipeline e identico per le due lingue. Se il file sorgente e un
-video, `--video` produce `vo_clean.mp4` (faccia tagliata) oltre a `vo_clean.wav` per l'audio.
+`--language auto` detects language; force with `it` or `en` (also works via `project.json` with `"language": "it"`). Pipeline is identical for both languages. If source is video, `--video` produces `vo_clean.mp4` (face cut) plus `vo_clean.wav` for audio.
 
-Poi apri OpenCode **dentro** questa cartella (così trova la skill e `AGENTS.md`):
+Then open OpenCode **inside** this folder (so it finds the skill and `AGENTS.md`):
 
 ```bash
 cd ~/shorts-studio
 opencode
 ```
 
-e scrivi:
+And write:
 
 ```text
-@shorts-editor prepara il montaggio di fallout-3-vs-new-vegas
+@shorts-editor prepare the edit for my-video
 ```
 
-L'agente legge la trascrizione pulita, guarda l'indice dei media, scrive `projects/<slug>/shotlist.json`
-con un suggerimento per ogni slot, valida, genera i segnaposto e lo script Lua. Se hai registrato in
-video, decide anche **dove si vede la tua faccia** (`source: "face"`) e taglia quelle clip da solo.
+The agent reads the clean transcript, checks the media index, writes `projects/<slug>/shotlist.json` with a suggestion for each slot, validates, generates placeholders and the Lua script. If you recorded on video, it also decides **where your face appears** (`source: "face"`) and cuts those clips automatically.
 
-Infine:
+Finally:
 
-1. Apri Resolve, apri un progetto.
-2. `Workspace > Console`, seleziona **Lua**.
-3. Trascina dentro `build/<slug>/<slug>_build.lua` e premi Invio.
-4. Vai in Edit: c'e la timeline con tutto.
-5. Sostituisci solo i segnaposto (fase 8 di `WORKFLOW.md`). Le caption, le transizioni e le
-   eventuali clip A-roll della tua faccia sono gia a posto.
-
-Lo script non contiene percorsi assoluti: trova la cartella da `~/shorts-studio`. Se l'hai spostata,
-scrivi prima in Console `SHORTS_ROOT = "/percorso/della/cartella"`.
+1. Open Resolve, open a project.
+2. `Workspace > Console`, select **Lua** at bottom.
+3. Drag `build/<slug>/<slug>_build.lua` into Console and press Enter.
+4. In Edit page: timeline `<slug>_v1` is ready.
+5. Replace only placeholders (see `WORKFLOW.md` phase 8). Captions, transitions, and A-roll face clips are already in place.
 
 ---
 
-## Vuoi vedere com'è fatto prima di registrare?
+## Alternative: Start from an Already-Edited Video
 
-Ci sono due progetti di prova già pronti:
-
-```text
-projects/esempio-spacehey/     shotlist con 4 slot e soli suggerimenti "?"
-projects/test-demo/            pipeline completa (voce finta, caption, 4 transizioni, SFX e BGM)
-```
+If you already have a video file **without pauses or errors** (already cut in another editor), skip transcribe/roughcut/render-audio:
 
 ```bash
-.venv/bin/python scripts/shorts.py validate esempio-spacehey
-.venv/bin/python scripts/shorts.py placeholders esempio-spacehey
-.venv/bin/python scripts/shorts.py lua esempio-spacehey
+.venv/bin/python scripts/shorts.py init-from-video my-video /path/to/edited_video.mp4
 ```
 
-Genera segnaposto veri e uno script Lua valido. Serve a guardare il formato, non a essere esportato.
-Per vedere caption e transizioni automatiche usa `test-demo` (`validate`, `placeholders --force`, `lua`).
+This extracts audio (`vo_clean.wav`), copies the video (`vo_clean.mp4` for A-roll), measures duration, and creates the project ready for shotlist writing. Then continue from `scan` → `validate` → `placeholders` → `lua`.
 
 ---
 
-## Script Lua pronti (`scripts/lua/`)
+## Commands
 
-Oltre allo script generato per ogni progetto, ci sono tre utility da trascinare nella Console:
+```bash
+.venv/bin/python scripts/shorts.py doctor                     # check dependencies
+.venv/bin/python scripts/shorts.py init <slug>                 # new project (from voiceover)
+.venv/bin/python scripts/shorts.py init-from-video <slug> <video>  # new project from pre-edited video
+.venv/bin/python scripts/shorts.py scan                        # index media/
+.venv/bin/python scripts/shorts.py transcribe <slug>           # Whisper -> transcript (--language auto|it|en)
+.venv/bin/python scripts/shorts.py roughcut <slug>             # silence/fillers/repetitions -> cuts.json
+.venv/bin/python scripts/shorts.py render-audio <slug>         # apply cuts -> vo_clean.wav + words.json (--video for talking head)
+.venv/bin/python scripts/shorts.py validate <slug>             # validate shotlist
+.venv/bin/python scripts/shorts.py placeholders <slug>         # placeholders + captions + transitions
+.venv/bin/python scripts/shorts.py captions <slug>             # captions only (overlay + SRT)
+.venv/bin/python scripts/shorts.py lua <slug>                  # generate Lua script for Resolve Console
+.venv/bin/python scripts/shorts.py qc <slug> [--video FILE]    # contact sheet from exported video
+```
 
-| File | Cosa fa |
-|---|---|
-| `00_check.lua` | Diagnostica: versione, progetto, timeline, tracce, marker, render formats. Non modifica nulla |
-| `20_fusion_probe.lua` | Test sperimentale: verifica se la tua versione free accetta `AddFusionComp`/`ImportFusionComp` |
-| `90_render_queue.lua` | Imposta 1080x1920 H.264 e aggiunge il job di render (modifica `OUT_DIR` in cima) |
+Useful options:
 
-Passano tutti `luac -p` e non hanno percorsi assoluti (tranne `OUT_DIR`, che è una scelta esplicita).
+- `init --language it|en|auto` saves language in `project.json`.
+- `transcribe --language it|en|auto` forces language (default: `project.json`, then `auto`).
+- `roughcut --aggressive` also cuts "actually", "like", "basically"...
+- `roughcut --keep-fillers` keeps fillers.
+- `render-audio --normalize` normalizes voice to -16 LUFS.
+- `render-audio --video` cuts video too (talking head) and prepares A-roll (1080x1920).
+- `face_fit` in shotlist: `crop` (default, fills vertical) or `fit` (letterbox).
+- `placeholders --force` regenerates placeholders, A-roll, captions, transitions.
+- `captions --force` regenerates only captions (useful after changing `captions` in shotlist).
+- `qc --video` accepts any export.
 
 ---
 
-## Studio 21.1.1: qualità (opzionale)
+## Project Structure
 
-Se hai DaVinci Resolve Studio 21.1.1, puoi attivare la modalità qualità nello shotlist:
+```
+shorts-studio/
+├── .opencode/skills/shorts-editor/   # skill teaching the agent this workflow
+├── scripts/
+│   ├── shorts.py                     # CLI: scan, transcribe, roughcut, validate, placeholders, lua, qc
+│   ├── lua/                          # Lua scripts for Resolve Console
+│   ├── setup-macos.sh
+│   └── setup-nobara.sh
+├── media/
+│   ├── clips/                        # your recorded gameplay
+│   ├── images/                       # photos, artwork, frames
+│   ├── logos/                        # channel logos, game logos
+│   ├── screenshots/                  # website/app screenshots
+│   ├── voiceover/raw/                # your recording (wav/mp4)
+│   ├── sfx/                          # sound effects (fixed names, see media/sfx/README.md)
+│   └── bgm/                          # background music
+├── projects/<slug>/
+│   ├── project.json                  # meta: slug, title, language, style
+│   ├── script.md                     # your script/outline
+│   ├── shotlist.json                 # the "direction": one slot per moment
+│   ├── cuts.manual.json              # manual corrections to rough cut
+│   └── notes.md
+└── build/<slug>/                     # all generated (regenerable, don't edit manually)
+    ├── transcript.json/.txt/.srt
+    ├── cuts.json + review.md
+    ├── vo_clean.wav + vo_clean.txt + words.json
+    ├── vo_clean.mp4 (with --video: face already cut)
+    ├── aroll/                        # face clips cut for source=face slots
+    ├── placeholders/                 # animated mp4/mov + card PNGs
+    ├── captions/                     # QTRLE alpha cards + captions.srt
+    ├── transitions/                  # alpha overlays (glitch/flash/dip/whip-pan)
+    ├── audio/                        # SFX with gain + bgm_mix.wav
+    ├── <slug>_build.lua              # script to paste in Resolve Console
+    └── qc/                           # contact sheet for review
+```
+
+---
+
+## Studio 21.1.1 Quality Mode (Optional)
+
+If you have **DaVinci Resolve Studio 21.1.1**, enable quality mode in shotlist:
 
 ```json
 "animation_mode": "fusion",
@@ -143,101 +181,36 @@ Se hai DaVinci Resolve Studio 21.1.1, puoi attivare la modalità qualità nello 
 "bgm": { "duck": true, "duck_db": -9 }
 ```
 
-Cosa cambia:
-- **Animazioni Fusion**: zoom/pan vivono in un Fusion comp attaccato al clip timeline. Dopo `Replace Selected Clip` (F11) l'animazione **resta** e si applica al tuo media.
-- **Transizioni native**: `cross-dissolve` e `dip-to-black` diventano transizioni vere di Resolve (non overlay). Servono handle (default 0.6s) nei segnaposto.
-- **BGM ducking**: la musica si abbassa automaticamente sotto la voce (`sidechaincompress`).
-- **Voice Isolation**: attiva su A1 per talking head (riduce rumore/riverbero).
-- **Micro-fade**: 5ms fade in/out su voce e SFX per evitare click.
+What changes:
+- **Fusion Animations**: zoom/pan live in a Fusion comp on the timeline clip. After `Replace Selected Clip` (F11) the animation **stays** and applies to your real media.
+- **Native Transitions**: `cross-dissolve` and `dip-to-black` become real Resolve transitions (not overlays). Need handles (default 0.6s) in placeholders.
+- **BGM Ducking**: music automatically ducks under voice (`sidechaincompress`).
+- **Voice Isolation**: enabled on A1 for talking head (reduces noise/reverb).
+- **Micro-fade**: 5ms fade in/out on voice and SFX to prevent clicks.
 
-Progetti esistenti senza questi campi restano in modalità `baked` (comportamento attuale).
-
----
-
-## Cartelle
-
-```text
-shorts-studio/
-├── .opencode/skills/shorts-editor/   skill che insegna all'agente questo flusso
-├── scripts/
-│   ├── shorts.py                    CLI: scan, transcribe, roughcut, validate, placeholders, lua, qc
-│   ├── lua/                         script Lua pronti per la Console di Resolve (vedi sotto)
-│   ├── setup-macos.sh
-│   └── setup-nobara.sh
-├── media/
-│   ├── clips/                       gameplay registrato da te
-│   ├── images/                      foto, artwork, frame
-│   ├── logos/                       loghi (canale, giochi)
-│   ├── screenshots/                 screenshot di siti/app
-│   ├── voiceover/raw/               il file che registri (wav/mp4)
-│   ├── sfx/                         effetti con nomi fissi (vedi media/sfx/README.md)
-│   └── bgm/                         musica di sottofondo
-├── projects/<slug>/
-│   ├── project.json
-│   ├── script.md
-│   ├── shotlist.json                la "regia": uno slot per ogni momento del video
-│   ├── cuts.manual.json             tagli decisi da te o dall'AI
-│   └── notes.md
-└── build/<slug>/                    tutto quello che viene generato
-    ├── transcript.json/.txt/.srt
-    ├── cuts.json + review.md
-    ├── vo_clean.wav + vo_clean.txt + words.json
-    ├── vo_clean.mp4 (solo con --video: faccia gia tagliata)
-    ├── aroll/                      clip della faccia tagliate per gli slot source=face
-    ├── placeholders/                mp4/mov gia animati + card PNG
-    ├── captions/                    card QTRLE alpha + captions.srt
-    ├── transitions/                 overlay alpha (glitch/flash/dip/whip-pan)
-    ├── audio/                       SFX con gain + bgm_mix.wav
-    ├── <slug>_build.lua             script da incollare in Resolve
-    └── qc/                          contact sheet per la revisione
-```
+Projects without these fields stay in `baked` mode (current behavior).
 
 ---
 
-## Comandi
+## Documentation
 
-```bash
-.venv/bin/python scripts/shorts.py doctor                     # controlla ffmpeg, font, Pillow, Resolve
-.venv/bin/python scripts/shorts.py init <slug>                # nuovo progetto
-.venv/bin/python scripts/shorts.py scan                       # indicizza media/ (media/index.json)
-.venv/bin/python scripts/shorts.py transcribe <slug>          # Whisper -> transcript (--language auto|it|en)
-.venv/bin/python scripts/shorts.py roughcut <slug>            # silenzi/riempitivi/ripetizioni -> cuts.json
-.venv/bin/python scripts/shorts.py render-audio <slug>        # taglia davvero -> vo_clean.wav + words.json (--video per la faccia)
-.venv/bin/python scripts/shorts.py validate <slug>            # controlla lo shotlist
-.venv/bin/python scripts/shorts.py placeholders <slug>        # segnaposto + caption + transizioni
-.venv/bin/python scripts/shorts.py captions <slug>            # solo caption (overlay + SRT)
-.venv/bin/python scripts/shorts.py lua <slug>                 # genera lo script per Resolve
-.venv/bin/python scripts/shorts.py qc <slug> --video out.mp4  # contact sheet del video finale
-```
-
-Opzioni utili:
-
-- `init --language it|en|auto` salva la lingua in `project.json`.
-- `transcribe --language it|en|auto` forza la lingua (default: `project.json`, poi `auto`).
-- `roughcut --aggressive` taglia anche "cioè", "tipo", "praticamente".
-- `roughcut --keep-fillers` non tocca i riempitivi.
-- `render-audio --normalize` porta la voce a -16 LUFS.
-- `render-audio --video` taglia anche il video del talking head e prepara l'A-roll (1080x1920).
-- `face_fit` nello shotlist: `crop` (default, riempie il verticale) o `fit` (letterbox).
-- `placeholders --force` rigenera segnaposto, A-roll, caption e transizioni.
-- `captions --force` rigenera solo le caption (utile se cambi `captions` nello shotlist).
-- `qc --video` accetta qualsiasi export.
+- **`WORKFLOW.md`** — complete operational flow, phase by phase, with Resolve clicks.
+- **`SETUP.md`** — macOS and Nobara Linux installation, Resolve Console, fonts, codecs.
+- **`STYLE.md`** — visual presets: 90s anime, CRT, PS2, Frutiger Aero.
+- **`AGENTS.md`** — permanent instructions for OpenCode.
+- **`media/sfx/README.md`** — fixed SFX names.
+- **`presets/fusion/README.md`** — how to create reusable Fusion animation templates.
 
 ---
 
-## Documenti
+## Golden Rule
 
-- **`WORKFLOW.md`** — il flusso completo, fase per fase, con i click in Resolve.
-- **`SETUP.md`** — installazione macOS e Nobara Linux, Console di Resolve, font, codec.
-- **`STYLE.md`** — preset visivi: anime anni 90, CRT, PS2, Frutiger Aero.
-- **`AGENTS.md`** — istruzioni permanenti per OpenCode.
-- **`media/sfx/README.md`** — nomi fissi degli effetti.
-- **`presets/fusion/README.md`** — come creare una volta sola le animazioni da riusare dopo la sostituzione.
+The AI **does not download** clips or images from the internet. It only uses what's in `media/`.
+If you don't have the material for a slot, the suggestion starts with `?` describing what to get.
+No copyright strikes, and you always know what's missing.
 
 ---
 
-## Regola d'oro
+## License
 
-L'AI **non scarica** clip o immagini da internet. Usa solo quello che c'e in `media/`.
-Se per uno slot non hai il materiale, il suggerimento inizia con `?` e descrive cosa procurarti.
-Così non prendi strike per copyright e sai sempre cosa manca.
+MIT — free to use, modify, distribute.

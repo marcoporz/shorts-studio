@@ -1,51 +1,36 @@
 # AGENTS.md
 
-Istruzioni permanenti per OpenCode quando lavora in questa cartella.
+Permanent instructions for OpenCode when working in this folder.
 
-## Cos'è questo progetto
+## What This Project Is
 
-`shorts-studio` trasforma un voiceover o un **talking head** (**italiano o inglese**) in una
-**timeline editabile in DaVinci Resolve free**: trascrizione → rough cut → shotlist → segnaposto
-animati + caption + transizioni → script Lua per la Console → timeline con marker, SFX e BGM.
-L'utente sostituisce i segnaposto con i suoi media; caption, transizioni e clip A-roll della faccia
-restano gia montate.
+`shorts-studio` transforms a voiceover or a **talking head** (**Italian or English**) into an **editable DaVinci Resolve timeline**: transcription → rough cut → shotlist → animated placeholders + captions + transitions → Lua script for Console → timeline with markers, SFX, and BGM. User replaces placeholders with their media; captions, transitions, and A-roll face clips stay already edited.
 
-Stack: OpenCode + DaVinci Resolve free + ffmpeg + Python (Pillow, Whisper opzionale).
-Nessun servizio a pagamento, nessun upload, nessun download automatico di media.
+Stack: OpenCode + DaVinci Resolve free + ffmpeg + Python (Pillow, Whisper optional).
+No paid services, no uploads, no automatic media downloads.
 
-## Regole ferree
+## Hard Rules
 
-1. **Non inventare percorsi.** Ogni `media/...` scritto nello shotlist deve esistere in
-   `media/index.json`. Se manca, usa `"?descrizione precisa"`.
-2. **Non scaricare** clip, immagini, musica o loghi. L'utente mette i file in `media/`.
-3. **Non modificare i file in `media/`**: sono originali dell'utente.
-4. **Tempo pulito**: usa sempre `build/<slug>/vo_clean.txt` (o `words.json`), mai i tempi di
-   `transcript.txt`, dopo il rough cut.
-5. **La fonte di verità della regia è `projects/<slug>/shotlist.json`.** `build/` è rigenerabile:
-   non correggerlo a mano.
-6. **Resolve free**: scripting solo dalla Console interna, linguaggio Lua. Non proporre Python
-   esterno, MCP, menu Scripts o automazioni Studio-only.
-7. **Niente promesse impossibili**: l'API non crea transizioni reali tra clip, keyframe Edit, velocità
-   o nodi Fusion. Le transizioni automatiche sono overlay alpha su V3 (`glitch`, `flash`,
-   `dip-to-black`, `whip-pan`); `cross-dissolve`, animazioni di camera e nodi Fusion restano manuali
-   o via template. Zoom, opacity e blend mode invece sì.
-   Con `animation_mode: fusion` i nodi Fusion sono supportati via `AddFusionComp` su clip timeline.
-   Con `native_transitions: true` le transizioni `cross-dissolve` e `dip-to-black` diventano native.
-8. **Caption obbligatorie** per gli Shorts: statiche, terzo inferiore, max 2 righe, generate da
-   `words.json` e messe su V4. Non sono una traccia sottotitoli: sono clip alpha + `captions.srt`.
-9. **Talking head**: se il sorgente e un video, usa `render-audio --video`. Gli slot con
-   `"source": "face"` devono essere `layer: "base"`, `kind: "clip"`, `animation: "static"`; vengono
-   tagliati in `build/<slug>/aroll/` e **non vanno sostituiti**. Non inventare `vo_clean.mp4`:
-   se manca, fermati e chiedi di lanciare `render-audio --video`.
-   Con `animation_mode: fusion` gli slot faccia restano statici; animazioni sul volto vanno applicate
-   dopo come Fusion comp (template in `presets/fusion/`).
-10. Parla italiano con l'utente. Identificatori, chiavi JSON e codice in inglese.
+1. **Don't invent paths.** Every `media/...` in shotlist must exist in `media/index.json`. If missing, use `"?precise description"`.
+2. **Don't download** clips, images, music, or logos. User puts files in `media/`.
+3. **Don't modify files in `media/`**: they're user originals.
+4. **Clean time**: always use `build/<slug>/vo_clean.txt` (or `words.json`), never `transcript.txt` times after rough cut.
+5. **The direction source of truth is `projects/<slug>/shotlist.json`.** `build/` is regenerable: don't edit it manually.
+6. **Resolve free**: scripting only from internal Console, Lua language. Don't propose external Python, MCP, Scripts menu, or Studio-only automations.
+7. **No impossible promises**: API doesn't create real transitions between clips, Edit keyframes, speed, or Fusion nodes. Automatic transitions are alpha overlays on V3 (`glitch`, `flash`, `dip-to-black`, `whip-pan`); `cross-dissolve`, camera animations, and Fusion nodes remain manual or via template. Zoom, opacity, and blend mode work though.
+   With `animation_mode: fusion`, Fusion nodes are supported via `AddFusionComp` on timeline clip.
+   With `native_transitions: true`, `cross-dissolve` and `dip-to-black` become native transitions.
+8. **Captions mandatory** for Shorts: static, lower third, max 2 lines, generated from `words.json` on V4. Not a subtitle track: they're alpha clips + `captions.srt`.
+9. **Talking head**: if source is video, use `render-audio --video`. Slots with `"source": "face"` must be `layer: "base"`, `kind: "clip"`, `animation: "static"`; they're cut in `build/<slug>/aroll/` and **must not be replaced**. Don't invent `vo_clean.mp4`: if missing, stop and ask to run `render-audio --video`.
+   With `animation_mode: fusion`, face slots remain static; face animations go applied after as Fusion comp (templates in `presets/fusion/`).
+10. Speak Italian with the user. Identifiers, JSON keys, and code in English.
 
-## Comandi (usa sempre il venv)
+## Commands (always use venv)
 
 ```bash
 .venv/bin/python scripts/shorts.py doctor
 .venv/bin/python scripts/shorts.py init <slug>
+.venv/bin/python scripts/shorts.py init-from-video <slug> <video>
 .venv/bin/python scripts/shorts.py scan
 .venv/bin/python scripts/shorts.py transcribe <slug> [--model small] [--language auto|it|en]
 .venv/bin/python scripts/shorts.py roughcut <slug> [--aggressive]
@@ -57,53 +42,48 @@ Nessun servizio a pagamento, nessun upload, nessun download automatico di media.
 .venv/bin/python scripts/shorts.py qc <slug> [--video FILE]
 ```
 
-Se `.venv` non esiste: `./scripts/setup-macos.sh` (macOS) o `./scripts/setup-nobara.sh` (Linux).
+If `.venv` doesn't exist: `./scripts/setup-macos.sh` (macOS) or `./scripts/setup-nobara.sh` (Linux).
 
-## Flusso quando l'utente chiede un nuovo video
+## Flow When User Asks for New Video
 
-1. `doctor` e `scan`.
-2. Se non c'è `build/<slug>/transcript.json`: `transcribe`.
-3. `roughcut`, leggi `build/<slug>/review.md`, aggiungi eventuali tagli in
-   `projects/<slug>/cuts.manual.json`, rilancia `roughcut` + `render-audio --normalize`.
-   Se il sorgente e un video (talking head), aggiungi `--video`.
-4. Leggi `build/<slug>/vo_clean.txt` e `media/index.json`.
-5. Scrivi `projects/<slug>/shotlist.json` secondo `.opencode/skills/shorts-editor/`:
-   caption attive, transizioni automatiche solo sui punti di svolta. Se c'e il video, alterna
-   slot `"source": "face"` e b-roll: la faccia va su `base`, mai su `overlay`.
-6. `validate` finché non ci sono errori (l'avviso su `cross-dissolve` è voluto).
-7. `placeholders` (segnaposto + caption + transizioni), poi `lua`.
-8. Dai all'utente le istruzioni per la Console, il layout V1-V4/A1-A3 e l'elenco degli slot con `?`.
-9. Quando esporta: `qc --video ...`, leggi la contact sheet con `read` e commenta anche le caption.
+1. `doctor` and `scan`.
+2. If no `build/<slug>/transcript.json`: `transcribe`.
+3. `roughcut`, read `build/<slug>/review.md`, add manual cuts in `projects/<slug>/cuts.manual.json`, rerun `roughcut` + `render-audio --normalize`. If source is video (talking head), add `--video`.
+4. Read `build/<slug>/vo_clean.txt` and `media/index.json`.
+5. Write `projects/<slug>/shotlist.json` per `.opencode/skills/shorts-editor/`: captions active, automatic transitions only on turning points. If video exists, alternate `"source": "face"` and b-roll: face goes on `base`, never on `overlay`.
+6. `validate` until no errors (warning on `cross-dissolve` is intentional).
+7. `placeholders` (placeholders + captions + transitions), then `lua`.
+8. Give user Console instructions, V1–V4/A1–A3 layout, and slot list with `?`.
+9. When exporting: `qc --video ...`, read contact sheet with `read` and comment on captions too.
 
 ## Skill
 
-Carica la skill `shorts-editor` per lo schema completo dello shotlist, i limiti dell'API e i cue audio:
+Load `shorts-editor` skill for complete shotlist schema, API limits, and audio cues:
 
 - `.opencode/skills/shorts-editor/SKILL.md`
 - `.opencode/skills/shorts-editor/references/shotlist-schema.md`
 - `.opencode/skills/shorts-editor/references/resolve-lua.md`
 - `.opencode/skills/shorts-editor/references/audio-cues.md`
 
-## Documenti
+## Documents
 
-- `WORKFLOW.md` — fasi operative e click in Resolve.
-- `SETUP.md` — installazione macOS/Nobara.
-- `STYLE.md` — palette e regole per anime90, CRT, PS2, Frutiger Aero.
-- `README.md` — panoramica e comandi.
+- `WORKFLOW.md` — operational phases and Resolve clicks.
+- `SETUP.md` — macOS/Nobara installation.
+- `STYLE.md` — palettes and rules for anime90, CRT, PS2, Frutiger Aero.
+- `README.md` — overview and commands.
 
-## Cosa controllare prima di consegnare
+## Pre-Delivery Checklist
 
-- [ ] `validate` senza errori.
-- [ ] Copertura base = durata voiceover (±0.25s), nessun buco.
-- [ ] Ogni slot ha `intent`, `suggest.primary`, `suggest.why`.
-- [ ] Gli overlay stanno dentro uno slot base.
-- [ ] Gli SFX sono sui tagli, max 1 ogni 2-3s.
-- [ ] Le caption sono attive e `build/<slug>/captions/manifest.json` non è vuoto.
-- [ ] Se ci sono slot faccia: `build/<slug>/aroll/` contiene le clip, i marker dicono di non
-      sostituirle e `vo_clean.mp4` copre tutti i tempi.
-- [ ] Le transizioni automatiche sono tra `glitch`/`flash`/`dip-to-black`/`whip-pan`.
-- [ ] Se `native_transitions: true`: `cross-dissolve` e `dip-to-black` sono native (richiedono handle).
-- [ ] Se `animation_mode: fusion`: segnaposto animati statici, Fusion comp su clip V1 base.
-- [ ] I `?` sono elencati nel messaggio finale.
-- [ ] Lo script Lua passa `luac -p` (se disponibile) e non contiene percorsi assoluti.
-- [ ] Il report Lua (o il mock) mostra V3 transizioni e V4 caption con i conteggi attesi.
+- [ ] `validate` with no errors.
+- [ ] Base coverage = voiceover duration (±0.25s), no holes.
+- [ ] Every slot has `intent`, `suggest.primary`, `suggest.why`.
+- [ ] Overlays stay inside a base slot.
+- [ ] SFX on cuts, max 1 every 2–3s.
+- [ ] Captions active and `build/<slug>/captions/manifest.json` not empty.
+- [ ] If face slots: `build/<slug>/aroll/` has clips, markers say don't replace, `vo_clean.mp4` covers all times.
+- [ ] Automatic transitions are among `glitch`/`flash`/`dip-to-black`/`whip-pan`.
+- [ ] If `native_transitions: true`: `cross-dissolve` and `dip-to-black` are native (require handles).
+- [ ] If `animation_mode: fusion`: animated placeholders are static, Fusion comp on V1 base clips.
+- [ ] `?` listed in final message.
+- [ ] Lua script passes `luac -p` (if available) and no absolute paths.
+- [ ] Lua report (or mock) shows V3 transitions and V4 captions with expected counts.

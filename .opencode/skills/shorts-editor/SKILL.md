@@ -1,48 +1,37 @@
 ---
 name: Shorts Editor
-description: Usa questa skill quando l'utente vuole trasformare un voiceover o un talking head (italiano o inglese) in uno Short o video essay montato in DaVinci Resolve (free): trascrizione, rough cut, shotlist, segnaposto animati, A-roll della faccia, caption, transizioni, timeline con marker, SFX e BGM. Attivala per richieste tipo "preparami il montaggio", "taglia le pause", "crea la timeline", "metti i sottotitoli", "sistema questo short", "ho registrato anche la mia faccia".
+description: Use this skill when user wants to transform a voiceover or talking head (Italian or English) into a Short or video essay edited in DaVinci Resolve (free): transcription, rough cut, shotlist, animated placeholders, face A-roll, captions, transitions, timeline with markers, SFX and BGM. Activate for requests like "prepare my edit", "cut pauses", "create timeline", "add subtitles", "fix this short", "I also recorded my face".
 ---
 
 # Shorts Editor
 
-Sei il montatore che prepara il lavoro. Il tuo output non e un video renderizzato: e una **timeline
-editabile in DaVinci Resolve free**, piena di segnaposto gia animati e marker che spiegano cosa mettere.
-L'utente sostituisce i segnaposto con i suoi clip. Tutto il resto deve essere gia deciso.
-Se l'utente ha registrato in video, decidi anche **dove si vede la sua faccia**: quegli slot vengono
-tagliati automaticamente e non vanno sostituiti.
+You're the editor who preps the work. Your output isn't a rendered video: it's an **editable DaVinci Resolve free timeline**, full of already-animated placeholders and markers explaining what goes where. User replaces placeholders with their clips. Everything else must already be decided. If user recorded on video, you also decide **where their face appears**: those slots get auto-cut and must not be replaced.
 
-## Prima di iniziare
+## Before Starting
 
-1. Leggi `WORKFLOW.md`, `STYLE.md` e `references/shotlist-schema.md`.
-2. Lavora **solo** dentro `~/shorts-studio`.
-3. Usa i comandi della CLI. Non riscrivere a mano `build/`: e rigenerabile.
-4. Se manca un progetto: `python scripts/shorts.py init <slug>`.
+1. Read `WORKFLOW.md`, `STYLE.md` and `references/shotlist-schema.md`.
+2. Work **only** inside `~/shorts-studio`.
+3. Use CLI commands. Don't rewrite `build/` manually: it's regenerable.
+4. If project missing: `python scripts/shorts.py init <slug>`.
 
-## Regole non negoziabili
+## Non-Negotiable Rules
 
-- **Mai inventare percorsi.** Ogni `media/...` che scrivi deve esistere in `media/index.json`.
-  Se il materiale non c'e, scrivi `"?descrizione precisa di cosa serve"`.
-- **Mai scaricare** clip, immagini o musica da internet. Non e nel flusso e crea rischi copyright.
-- **Ogni slot deve avere un `why`.** Se non sai motivare lo slot, non va messo.
-- **Ogni slot deve essere specifico.** "Gameplay di Fallout" non basta: "uscita dal Vault 101, porta che si apre".
-- **Copertura totale.** Gli slot `base` coprono il voiceover da 0 alla durata, senza buchi e senza sovrapposizioni.
-- **Non toccare i tempi originali.** Tutto si misura su `vo_clean.txt` (tempo pulito).
-- **Non promettere** MCP, Python esterno o automazione one-click: su Resolve free non esistono.
-- **Le caption sono obbligatorie** per gli Shorts: lascia `captions.enabled: true` e controlla che
-  `render-audio` abbia prodotto `build/<slug>/words.json`. Sono card statiche, leggibili, nel terzo
-  inferiore; non animarle.
-- **Transizioni automatiche**: usa `glitch`, `flash`, `dip-to-black`, `whip-pan`. Diventano overlay alpha
-  su una traccia dedicata e **sopravvivono alla sostituzione** del segnaposto. `cross-dissolve` resta
-  manuale: l'API free non crea transizioni reali tra clip.
-- **Talking head**: se il sorgente e un video, alterna slot `"source": "face"` e b-roll. Gli slot
-  faccia sono `layer: "base"`, `kind: "clip"`, `animation: "static"`; non vanno sostituiti perche
-  `placeholders` li taglia da `vo_clean.mp4` in `build/<slug>/aroll/`. Tieni il terzo inferiore libero
-  per le caption. Se manca `vo_clean.mp4`, non improvvisare: chiedi `render-audio --video`.
+- **Never invent paths.** Every `media/...` you write must exist in `media/index.json`. If material missing, write `"?precise description of what's needed"`.
+- **Never download** clips, images, or music from internet. Not in workflow and creates copyright risk.
+- **Every slot needs a `why`.** If you can't motivate the slot, don't add it.
+- **Every slot must be specific.** "Fallout gameplay" isn't enough: "Vault 101 exit, door opening".
+- **Full coverage.** `base` slots cover voiceover from 0 to duration, no holes or overlaps.
+- **Don't touch original times.** Everything measured on `vo_clean.txt` (clean time).
+- **Don't promise** MCP, external Python, or one-click automation: on Resolve free they don't exist.
+- **Captions are mandatory** for Shorts: keep `captions.enabled: true` and verify `render-audio` produced `build/<slug>/words.json`. Static cards, readable, lower third; don't animate them.
+- **Automatic transitions**: use `glitch`, `flash`, `dip-to-black`, `whip-pan`. They become alpha overlays on a dedicated track and **survive placeholder replacement**. `cross-dissolve` stays manual: free API doesn't create real transitions between clips.
+- **Talking head**: if source is video, alternate `"source": "face"` and b-roll slots. Face slots are `layer: "base"`, `kind: "clip"`, `animation: "static"`; don't replace them because `placeholders` cuts them from `vo_clean.mp4` into `build/<slug>/aroll/`. Keep lower third free for captions. If `vo_clean.mp4` missing, don't improvise: ask for `render-audio --video`.
+- If video is long, don't change visual every second: 1.5–3s is the right pace.
+- Don't put a transition on every cut: pick only turning points (hook, chapters, revelation).
 
-### Studio 21.1.1 Quality Mode (opzionale)
+### Studio 21.1.1 Quality Mode (Optional)
 
-Se l'utente ha DaVinci Resolve Studio 21.1.1, puoi attivare la modalità qualità nello shotlist
-aggiungendo questi campi top-level (tutti opzionali, default al comportamento attuale `baked`):
+If user has DaVinci Resolve Studio 21.1.1, you can enable quality mode in shotlist by adding these top-level fields (all optional, default to current `baked` behavior):
 
 ```json
 "animation_mode": "fusion",
@@ -52,92 +41,85 @@ aggiungendo questi campi top-level (tutti opzionali, default al comportamento at
 "bgm": { "duck": true, "duck_db": -9 }
 ```
 
-**Cosa cambia per te (agente):**
-- Imposta `animation_mode: "fusion"` e `native_transitions: true` per i progetti Studio 21.1.1.
-- `transition_handle` (default 0.6s) definisce gli handle nei segnaposto per le transizioni native.
-- `audio.voice_isolation` attiva Voice Isolation su A1 (talking head).
-- `bgm.duck` attiva il ducking automatico della BGM sotto la voce.
+**What changes for you (agent):**
+- Set `animation_mode: "fusion"` and `native_transitions: true` for Studio 21.1.1 projects.
+- `transition_handle` (default 0.6s) defines handles in placeholders for native transitions.
+- `audio.voice_isolation` enables Voice Isolation on A1 (talking head).
+- `bgm.duck` enables automatic BGM ducking under voice.
 
-**Cosa cambia per l'utente (cosa dire nel messaggio finale):**
-- **Animazioni Fusion**: i segnaposto animati sono statici; l'animazione è in un Fusion comp sul clip timeline. Dopo `Replace Selected Clip` (F11) l'animazione **resta** e si applica al media vero. **Non riapplicare** zoom/pan.
-- **Transizioni native**: `cross-dissolve` e `dip-to-black` sono transizioni vere di Resolve. Servono handle (default 0.6s) nei segnaposto. `glitch`, `flash`, `whip-pan` restano overlay V3. Se gli handle non bastano, il Lua fa fallback all'overlay e avvisa.
-- **BGM ducking**: la musica si abbassa automaticamente sotto la voce.
-- **Voice Isolation**: attiva su A1 per talking head (riduce rumore/riverbero).
-- **Micro-fade**: 5ms fade in/out su voce e SFX per evitare click.
+**What changes for user (what to say in final message):**
+- **Fusion Animations**: animated placeholders are static; animation lives in a Fusion comp on timeline clip. After `Replace Selected Clip` (F11) animation **stays** and applies to real media. **Don't re-apply** zoom/pan.
+- **Native Transitions**: `cross-dissolve` and `dip-to-black` are real Resolve transitions. Need handles (default 0.6s) in placeholders. `glitch`, `flash`, `whip-pan` remain V3 overlays. If handles insufficient, Lua falls back to overlay and warns.
+- **BGM Ducking**: music automatically ducks under voice.
+- **Voice Isolation**: enabled on A1 for talking head (reduces noise/reverb).
+- **Micro-fade**: 5ms fade in/out on voice and SFX to prevent clicks.
 
-**Regole di validazione che devi rispettare:**
-- `native_transitions` richiede `animation_mode: "fusion"`.
-- `transition_handle` tra 0.2 e 1.5 secondi.
-- `audio.voice_isolation_amount` tra 0 e 100.
-- `bgm.duck_db` negativo tra -24 e -3.
+**Validation Rules You Must Enforce:**
+- `native_transitions` requires `animation_mode: "fusion"`.
+- `transition_handle` between 0.2 and 1.5 seconds.
+- `audio.voice_isolation_amount` between 0 and 100.
+- `bgm.duck_db` negative between -24 and -3.
 - `animation_mode` in `baked|fusion`.
-- Progetti esistenti senza campi restano in `baked` (comportamento identico a oggi).
-- Se il video e lungo, non mettere un cambio visivo ogni secondo: 1.5-3s e il ritmo giusto.
-- Non mettere una transizione su ogni taglio: scegli solo i punti di svolta (hook, capitoli, rivelazione).
+- Existing projects without fields stay in `baked` (identical to today).
+- If video is long, don't change visual every second: 1.5–3s is the right pace.
+- Don't put a transition on every cut: choose only turning points (hook, chapters, revelation).
 
-## Procedura
+## Procedure
 
-### 1. Controlla lo stato
+### 1. Check Status
 
 ```bash
 python scripts/shorts.py doctor
 python scripts/shorts.py scan
 ```
 
-Leggi `media/index.json`: e la tua unica fonte di verita sui materiali. Contiene durata, risoluzione,
-fps e tag ricavati dal nome file.
+Read `media/index.json`: your only source of truth on materials. Contains duration, resolution, fps, and tags from filename.
 
-### 2. Trascrivi (se non c'e gia)
+### 2. Transcribe (if not already)
 
 ```bash
 python scripts/shorts.py transcribe <slug> --model small --language auto
 ```
 
-La lingua predefinita e `auto` (Whisper la rileva). Per forzarla: `--language it` o `--language en`.
-Puoi anche impostarla una volta in `projects/<slug>/project.json` con `"language": "it"` (oppure `en`);
-la CLI usa quel valore se non passi `--language`. Vale per italiano e inglese: non serve un progetto
-separato. Se `build/<slug>/transcript.json` esiste, non rifarlo.
+Default language is `auto` (Whisper detects). To force: `--language it` or `--language en`. You can also set it once in `projects/<slug>/project.json` with `"language": "it"` (or `en`); CLI uses that if you don't pass `--language`. Works for Italian and English: no separate project needed. If `build/<slug>/transcript.json` exists, don't redo it.
 
-### 3. Rough cut
+### 3. Rough Cut
 
 ```bash
 python scripts/shorts.py roughcut <slug>
 ```
 
-Leggi `build/<slug>/review.md`. Poi decidi se serve altro:
+Read `build/<slug>/review.md`. Then decide if more needed:
 
-- frasi sbagliate ma fluenti → aggiungi un `drop` in `projects/<slug>/cuts.manual.json`;
-- pause volute → aggiungi un `keep`.
+- fluent but wrong sentences → add `drop` in `projects/<slug>/cuts.manual.json`;
+- intentional pauses → add `keep`.
 
-Rilancia `roughcut` e poi:
+Rerun `roughcut` then:
 
 ```bash
 python scripts/shorts.py render-audio <slug> --normalize
 ```
 
-Se la registrazione e un **video** (talking head), controlla `media/index.json` (`has_video: true`
-sulla voce in `voiceover_raw`) e aggiungi `--video`:
+If recording is a **video** (talking head), check `media/index.json` (`has_video: true` on voice in `voiceover_raw`) and add `--video`:
 
 ```bash
 python scripts/shorts.py render-audio <slug> --normalize --video
 ```
 
-Questo produce `vo_clean.mp4` (faccia tagliata) e `vo_clean.wav` per A1. Senza `--video` non ci sono
-gli slot faccia: in quel caso scrivi solo b-roll.
+This produces `vo_clean.mp4` (cut face) and `vo_clean.wav` for A1. Without `--video` no face slots: write only b-roll.
 
-### 4. Leggi la voce pulita
+### 4. Read Clean Voice
 
-Apri `build/<slug>/vo_clean.txt`. Contiene i segmenti con i tempi nuovi e il testo.
-**Non** usare `transcript.txt` per lo shotlist: i tempi sono sbagliati dopo i tagli.
+Open `build/<slug>/vo_clean.txt`. Contains segments with new times and text.
+**Don't** use `transcript.txt` for shotlist: times are wrong after cuts.
 
-Se `vo_clean.txt` non esiste, fermati e chiedi all'utente di lanciare `render-audio`.
+If `vo_clean.txt` doesn't exist, stop and ask user to run `render-audio`.
 
-### 5. Scrivi la regia
+### 5. Write Direction
 
-Crea `projects/<slug>/shotlist.json`. Prima leggi `project.json` per titolo e stile.
-Se l'utente non ha indicato uno stile, scegli in base al contenuto e dillo.
+Create `projects/<slug>/shotlist.json`. First read `project.json` for title and style. If user didn't specify style, pick based on content and tell them.
 
-Schema minimo (dettagli in `references/shotlist-schema.md`):
+Minimal schema (details in `references/shotlist-schema.md`):
 
 ```json
 {
@@ -145,10 +127,14 @@ Schema minimo (dettagli in `references/shotlist-schema.md`):
   "title": "...",
   "format": { "width": 1080, "height": 1920, "fps": 30 },
   "style": "ps2-crt",
+  "animation_mode": "baked",
+  "native_transitions": false,
+  "transition_handle": 0.6,
+  "audio": { "voice_isolation": false, "voice_isolation_amount": 60 },
   "voiceover": "build/<slug>/vo_clean.wav",
   "voiceover_duration": 58.4,
   "face_fit": "crop",
-  "bgm": { "file": "media/bgm/...", "gain_db": -24, "loop": true },
+  "bgm": { "file": "media/bgm/...", "gain_db": -24, "duck_db": -9, "loop": true, "duck": false },
   "captions": {
     "enabled": true,
     "position": "lower",
@@ -173,182 +159,158 @@ Schema minimo (dettagli in `references/shotlist-schema.md`):
       "opacity": 100,
       "blend": "normal",
       "transition_in": { "type": "glitch", "duration": 0.4 },
-      "sfx": [{ "file": "media/sfx/impatto-1.wav", "at": 0.0, "gain_db": -8 }],
+      "sfx": [{ "file": "media/sfx/impact-1.wav", "at": 0.0, "gain_db": -8 }],
       "text": null
     }
   ]
 }
 ```
 
-Come costruire la sequenza:
+How to build the sequence:
 
-1. Spezza il voiceover in **unita di senso**: una frase o mezza frase, non una parola.
-2. Per ogni unita scegli **cosa si deve vedere**. Se la frase e astratta ("e qui che tutto cambia"),
-   scegli l'immagine che la rende concreta.
-3. Se hai il talking head, decidi **dove torna la faccia**: hook, conclusioni, opinioni personali,
-   passaggi in cui il volto aggiunge qualcosa. Un blocco faccia ogni 20-40s e sufficiente; per il
-   resto usa b-roll. Gli slot faccia si scrivono cosi:
+1. Split voiceover into **sense units**: a sentence or half-sentence, not a word.
+2. For each unit pick **what must be seen**. If sentence is abstract ("and that's when everything changes"), choose image that makes it concrete.
+3. If you have talking head, decide **where face returns**: hook, conclusions, personal opinions, passages where face adds something. One face block every 20–40s is enough; rest use b-roll. Face slots written like:
 
-   ```json
-   {
-     "id": "s02",
-     "start": 12.4,
-     "duration": 2.2,
-     "layer": "base",
-     "source": "face",
-     "kind": "clip",
-     "intent": "Talking head: spiego il punto chiave guardando in camera",
-     "suggest": {
-       "primary": "?la tua faccia, gia tagliata dal video",
-       "alternatives": [],
-       "why": "Il passaggio e personale: il volto tiene il contatto meglio del gameplay."
-     },
-     "animation": "static",
-     "zoom": 1.0,
-     "transition_in": { "type": "cut" },
-     "sfx": [],
-     "text": null
-   }
-   ```
+```json
+{
+  "id": "s02",
+  "start": 12.4,
+  "duration": 2.2,
+  "layer": "base",
+  "source": "face",
+  "kind": "clip",
+  "intent": "Talking head: I explain the key point looking at camera",
+  "suggest": {
+    "primary": "?your face, already cut from video",
+    "alternatives": [],
+    "why": "Passage is personal: face holds contact better than gameplay."
+  },
+  "animation": "static",
+  "zoom": 1.0,
+  "transition_in": { "type": "cut" },
+  "sfx": [],
+  "text": null
+}
+```
 
-   `source` assente vale `broll`. Gli slot faccia devono essere `base` e `animation: "static"`.
-4. Controlla l'indice: hai quel materiale? Se si, metti il percorso. Se no, `?descrizione`.
-5. Scegli l'animazione in base allo stile e al tipo di media:
-   - gameplay in movimento → `static` o `push-in-slow`
+`source` absent = `broll`. Face slots must be `base` and `animation: "static"`.
+
+4. Check index: got that material? If yes, use path. If no, `?description`.
+5. Pick animation by style and media type:
+   - moving gameplay → `static` or `push-in-slow`
    - screenshot → `pan-lr` / `pan-rl`
    - logo → `push-in-fast`
-   - immagine singola → `drift-up` o `push-in-slow`
-6. Aggiungi SFX solo sui tagli importanti: hook, rivelazione, cambio di capitolo. Max 1 ogni 2-3s.
-7. Transizioni: scegli 2-4 punti di svolta. `glitch` per il cambio capitolo, `flash` per una rivelazione,
-   `dip-to-black` per chiudere una sezione, `whip-pan` per un cambio veloce. Non usare `cut` ovunque e
-   non mettere `cross-dissolve` se vuoi che sia automatico.
-8. Caption: obbligatorie. Lascia i default (terzo inferiore, max 2 righe, statiche). Non coprire il
-   volto o l'interfaccia di gioco: se lo slot e un primo piano, valuta `position: "middle"` solo per
-   quel progetto. Non mettere `uppercase` per gli Shorts italiani. Sugli slot faccia, inquadra il
-   volto nella meta alta e lascia libero il terzo inferiore.
-9. Overlay: loghi e testi su `layer: "overlay"`, sempre dentro uno slot base. Per fonderli meglio usa
-   `opacity` (es. 85) e `blend` (`screen` per scanline e bagliori, `add` per particelle, `multiply`
-   per ombre e texture).
+   - single image → `drift-up` or `push-in-slow`
+6. Add SFX only on important cuts: hook, revelation, chapter change. Max 1 every 2–3s.
+7. Transitions: pick 2–4 turning points. `glitch` for chapter change, `flash` for revelation, `dip-to-black` to close section, `whip-pan` for fast change. Don't use `cut` everywhere and don't use `cross-dissolve` if you want it automatic.
+8. Captions: mandatory. Leave defaults (lower third, max 2 lines, static). Don't cover face or game UI: if slot is close-up, consider `position: "middle"` only for that project. No `uppercase` for Italian Shorts. On face slots, frame face in upper half and leave lower third free.
+9. Overlay: logos and text on `layer: "overlay"`, always inside a base slot. Blend better with `opacity` (e.g. 85) and `blend` (`screen` for scanlines/glare, `add` for particles, `multiply` for shadows/textures).
 
-### 6. Valida
+### 6. Validate
 
 ```bash
 python scripts/shorts.py validate <slug>
 ```
 
-Ripeti finche non ci sono errori. Gli avvisi vanno letti: buchi, overlay fuori posto, copertura diversa
-dalla durata del voiceover.
+Repeat until no errors. Read warnings: holes, misplaced overlays, coverage different from voiceover duration.
 
-### 7. Genera i segnaposto
+### 7. Generate Placeholders
 
 ```bash
 python scripts/shorts.py placeholders <slug>
 ```
 
-Genera anche le caption (`build/<slug>/captions/`, QTRLE alpha + `captions.srt`) e le transizioni
-automatiche (`build/<slug>/transitions/`, overlay alpha). Gli slot `source: "face"` diventano clip
-A-roll vere in `build/<slug>/aroll/`, gia tagliate da `vo_clean.mp4`: nessuna card, nessuna
-sostituzione. Le caption richiedono `words.json`, prodotto
-da `render-audio`: se manca, `placeholders` avvisa e le salta. Se hai cambiato lo shotlist dopo averli
-gia generati, usa `--force`. Solo caption: `python scripts/shorts.py captions <slug> --force`.
+Generates captions (`build/<slug>/captions/`, QTRLE alpha + `captions.srt`) and automatic transitions (`build/<slug>/transitions/`, alpha overlays). `source: "face"` slots become real A-roll clips in `build/<slug>/aroll/`, already cut from `vo_clean.mp4`: no card, no replacement. Captions need `words.json` from `render-audio`: if missing, `placeholders` warns and skips. If you changed shotlist after generating, use `--force`. Captions only: `python scripts/shorts.py captions <slug> --force`.
 
-### 8. Genera lo script Lua
+### 8. Generate Lua Script
 
 ```bash
 python scripts/shorts.py lua <slug>
 ```
 
-Poi dai all'utente **esattamente** questo messaggio, personalizzato:
+Then give user **exactly** this message, customized:
 
 ```text
-Fatto. Ho preparato la timeline.
+Done. Edit prepared.
 
 In DaVinci Resolve:
-1. apri un progetto (anche vuoto)
+1. open a project (even empty)
 2. Workspace > Console
-3. seleziona Lua in basso
-4. trascina dentro build/<slug>/<slug>_build.lua
-5. premi Invio
+3. select Lua at bottom
+4. drag in build/<slug>/<slug>_build.lua
+5. press Enter
 
-Alla fine trovi la timeline <slug>_v1 nella pagina Edit.
-Ogni clip e un segnaposto animato: clicca sul marker per leggere cosa metterci.
-Per sostituirlo: seleziona il segnaposto nel Media Pool > click destro > Clip Operations >
-Replace Selected Clip (oppure F11), e scegli il tuo file.
-Gli slot A-ROLL/FACCIA sono gia tagliati e montati: NON sostituirli.
+At the end you'll find timeline <slug>_v1 in Edit page.
+Each clip is an animated placeholder: click marker to read what to put.
+To replace: select placeholder in Media Pool > right-click > Clip Operations >
+Replace Selected Clip (or F11), choose your file.
+A-ROLL/FACE slots are already cut and mounted: DO NOT replace them.
 
-Track: V1 B-ROLL + A-roll, V2 OVERLAY, V3 TRANSITIONS, V4 CAPTIONS | A1 VOICE, A2 SFX, A3 BGM.
-Le caption sono gia posizionate e leggibili, con captions.srt come copia.
-Le transizioni sono overlay su V3: restano anche dopo la sostituzione.
+Tracks: V1 B-ROLL + A-roll, V2 OVERLAY, V3 TRANSITIONS, V4 CAPTIONS | A1 VOICE, A2 SFX, A3 BGM.
+Captions already positioned and readable, with captions.srt as copy.
+Transitions are overlays on V3: they stay after replacement.
 
-Slot: N | A-roll: N | Durata: MM:SS | SFX: N | Caption: N | Transizioni: N | Segnaposto "?" (da procurarti): N
+Slots: N | A-roll: N | Duration: MM:SS | SFX: N | Captions: N | Transitions: N | "?" placeholders (to get): N
 ```
 
-Elenca anche i 3-5 slot piu importanti e cosa manca.
+List also the 3–5 most important slots and what's missing.
 
-### 9. Revisione
+### 9. Review
 
-Quando l'utente esporta:
+When user exports:
 
 ```bash
 python scripts/shorts.py qc <slug> --video <file.mp4>
 ```
 
-Leggi la contact sheet con il tool `read` (e un'immagine) e commenta:
-inquadrature, testo, coerenza dello stile, slot vuoti o ripetitivi.
+Read contact sheet with `read` tool (and image) and comment: framing, text, style consistency, empty or repetitive slots.
 
-## Cosa dire all'utente, sempre
+## What to Tell User, Always
 
-- Cosa hai deciso e perche (in 3 righe, non un tema).
-- Quali slot non hanno materiale (`?`).
-- Che le animazioni di camera dei segnaposto sono un'anteprima: dopo la sostituzione vanno riapplicate
-  con i template Fusion (`presets/fusion/README.md`); zoom/opacity/blend statici invece restano.
-  Gli slot A-roll della faccia sono gia clip vere e statiche: un eventuale push-in si applica a mano.
-- Che le transizioni automatiche sono su V3 e **non** vanno rifatte dopo la sostituzione;
-  `cross-dissolve` e le transizioni reali tra clip restano manuali in Edit.
-- Che le caption sono clip alpha su V4 (non una traccia sottotitoli): sono gia leggibili e
-  posizionate, con `captions.srt` come copia esportabile. Per correggere una parola si rigenera
-  dalle parole di `words.json`, non si edita la card a mano.
-- Che il gain di SFX e BGM è già cotto nei file in `build/<slug>/audio/` (un solo clip BGM,
-  già loopato e tagliato); restano manuali il ducking e il bilanciamento fine in Fairlight.
+- What you decided and why (3 lines, not an essay).
+- Which slots lack material (`?`).
+- That placeholder camera animations are a preview: after replacement they must be reapplied with Fusion templates (`presets/fusion/README.md`); static zoom/opacity/blend stay instead. Face A-roll slots are already real clips and static: any push-in applied manually.
+- That automatic transitions are on V3 and **don't** need redoing after replacement; `cross-dissolve` and real clip transitions stay manual in Edit.
+- That captions are alpha clips on V4 (not subtitle track): already readable and positioned, with `captions.srt` as exportable copy. To fix a word, regenerate from `words.json`, don't edit card manually.
+- That SFX/BGM gain is already baked in `build/<slug>/audio/` files (single BGM clip, already looped and cut); ducking and fine balance remain manual in Fairlight.
 
-## File di riferimento
+## Reference Files
 
-- `references/shotlist-schema.md` — schema completo, esempi, errori comuni
-- `references/resolve-lua.md` — cosa fa lo script Lua, limiti dell'API free, debug
-- `references/audio-cues.md` — nomi SFX, volumi, ducking
-- `../../WORKFLOW.md` — flusso operativo completo
-- `../../STYLE.md` — palette, font, animazioni per stile
+- `references/shotlist-schema.md` — complete schema, examples, common errors
+- `references/resolve-lua.md` — what Lua script does, free API limits, debug
+- `references/audio-cues.md` — SFX names, volumes, ducking
+- `../../WORKFLOW.md` — complete operational flow
+- `../../STYLE.md` — palettes, fonts, animations by style
 
-## Errori tipici da non fare
+## Common Mistakes to Avoid
 
-| Errore | Perche e grave |
+| Mistake | Why Serious |
 |---|---|
-| Usare i tempi di `transcript.txt` | dopo i tagli tutto e spostato |
-| Riempire `suggest.primary` con un file inventato | Resolve importa un file che non esiste e lo script si ferma |
-| Mettere 40 slot da 0.8s in un video da 60s | ritmo febbrile, l'utente non riesce a sostituirli |
-| Lasciare `why` generico | l'utente non sa perche hai scelto quel clip |
-| Mettere una transizione su ogni taglio | il video sembra un template e perde ritmo |
-| Usare `cross-dissolve` pensando sia automatico | resta manuale: l'API free non crea transizioni reali |
-| Dimenticare le caption | per gli Shorts sono obbligatorie: senza si perde meta del pubblico |
-| Animare le caption parola per parola | l'utente le vuole statiche, leggibili e non invasive |
-| Mettere uno slot faccia su `overlay` | la faccia e un base: deve coprire il voiceover su V1 |
-| Chiedere di sostituire l'A-roll | e gia tagliata da `vo_clean.mp4`: sostituirla rompe il montaggio |
-| Scrivere slot faccia senza `vo_clean.mp4` | `placeholders` si ferma: prima `render-audio --video` |
-| Promettere "faccio tutto io" | la sostituzione dei media e manuale per scelta |
+| Using `transcript.txt` times | after cuts everything shifts |
+| Filling `suggest.primary` with invented file | Resolve imports non-existent file and script stops |
+| 40 slots of 0.8s in a 60s video | frantic pace, user can't replace them |
+| Generic `why` | user doesn't know why you picked that clip |
+| Transition on every cut | video feels like template, loses pace |
+| Using `cross-dissolve` thinking it's automatic | stays manual: free API doesn't create real transitions |
+| Forgetting captions | for Shorts they're mandatory: lose half audience |
+| Animating captions word-by-word | user wants static, readable, non-invasive |
+| Face slot on `overlay` | face is a base: must cover voiceover on V1 |
+| Asking to replace A-roll | already cut from `vo_clean.mp4`: replacing breaks edit |
+| Writing face slot without `vo_clean.mp4` | `placeholders` stops: first `render-audio --video` |
+| Promising "I do it all" | media replacement is manual by choice |
 
-## Controllo prima di consegnare
+## Pre-Delivery Checklist
 
-- [ ] `validate` senza errori.
-- [ ] Slot `base` coprono il voiceover da 0 alla fine, senza buchi né sovrapposizioni.
-- [ ] Ogni slot ha `intent`, `suggest.primary` e `suggest.why` specifici.
-- [ ] Gli overlay stanno dentro uno slot base; `opacity`/`blend` solo se servono davvero.
-- [ ] SFX sui tagli importanti, max 1 ogni 2-3 secondi.
-- [ ] `captions.enabled` e `words.json` presente: le caption sono state generate.
-- [ ] Se c'e il talking head: gli slot faccia sono `base`/`static`, `aroll/` contiene le clip e
-      `vo_clean.mp4` copre tutti i tempi.
-- [ ] Le transizioni scelte sono tra `glitch`/`flash`/`dip-to-black`/`whip-pan`; `cross-dissolve`
-      compare solo come nota manuale.
-- [ ] La lingua del voiceover e corretta (`project.json` o `--language`).
-- [ ] I `?` sono elencati nel messaggio finale.
-- [ ] Lo script Lua passa `luac -p` e non contiene percorsi assoluti.
-- [ ] Il mock o il report Lua mostra V3 transizioni e V4 caption con i conteggi attesi.
+- [ ] `validate` with no errors.
+- [ ] `base` slots cover voiceover 0 to end, no holes or overlaps.
+- [ ] Every slot has `intent`, `suggest.primary`, `suggest.why` specific.
+- [ ] Overlays inside a base slot; `opacity`/`blend` only if really needed.
+- [ ] SFX on important cuts, max 1 every 2–3 seconds.
+- [ ] `captions.enabled` and `words.json` present: captions generated.
+- [ ] If talking head: face slots are `base`/`static`, `aroll/` has clips, `vo_clean.mp4` covers all times.
+- [ ] Automatic transitions are among `glitch`/`flash`/`dip-to-black`/`whip-pan`; `cross-dissolve` only as manual note.
+- [ ] Voiceover language correct (`project.json` or `--language`).
+- [ ] `?` listed in final message.
+- [ ] Lua script passes `luac -p` and no absolute paths.
+- [ ] Mock or Lua report shows V3 transitions and V4 captions with expected counts.
