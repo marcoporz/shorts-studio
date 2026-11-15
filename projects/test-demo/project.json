@@ -1,0 +1,13 @@
+{
+  "slug": "test-demo",
+  "title": "Test pipeline",
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "style": "ps2-crt",
+  "language": "it",
+  "voiceover": "",
+  "notes": ""
+}

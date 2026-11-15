@@ -1,0 +1,11 @@
+# Dipendenze Python del progetto.
+# Python 3.11-3.13 (3.13 consigliato). Python 3.15 non è compatibile con `av`/faster-whisper.
+# Installazione: .venv/bin/pip install -r requirements.txt
+
+pillow>=10.0
+
+# faster-whisper è installato dallo script di setup (default).
+# Per installarlo a mano: .venv/bin/pip install faster-whisper "av<17"
+# av 19 ha rimosso `metadata_errors`, che faster-whisper 1.2 usa ancora.
+# faster-whisper>=1.0
+# av>=14,<17

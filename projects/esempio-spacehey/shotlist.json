@@ -1,0 +1,101 @@
+{
+  "project": "esempio-spacehey",
+  "title": "Cosa sono questi social che NESSUNO conosce?",
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "style": "frutiger-aero",
+  "voiceover": "build/esempio-spacehey/vo_clean.wav",
+  "voiceover_duration": 9.0,
+  "bgm": null,
+  "slots": [
+    {
+      "id": "s01",
+      "start": 0.0,
+      "duration": 2.0,
+      "layer": "base",
+      "kind": "screenshot",
+      "intent": "Home di SpaceHey, sfondo azzurro e profilo personalizzato, push-in lento",
+      "suggest": {
+        "primary": "?screenshot tuo: home di SpaceHey nel 2005/2006",
+        "alternatives": [
+          "?screenshot della pagina 'about' del sito"
+        ],
+        "why": "Il gancio è la domanda: devi mostrare subito la cosa di cui nessuno parla."
+      },
+      "animation": "push-in-slow",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "cut"
+      },
+      "sfx": [],
+      "text": null
+    },
+    {
+      "id": "s02",
+      "start": 2.0,
+      "duration": 3.0,
+      "layer": "base",
+      "kind": "clip",
+      "intent": "Screen recording: scroll del profilo, il player musicale che parte",
+      "suggest": {
+        "primary": "?registrazione tua: scroll di un profilo SpaceHey",
+        "alternatives": [
+          "?screenshot del profilo con HTML personalizzato"
+        ],
+        "why": "SpaceHey si capisce usandolo: il movimento mostra le funzioni meglio di una foto."
+      },
+      "animation": "static",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "cut"
+      },
+      "sfx": [],
+      "text": null
+    },
+    {
+      "id": "s03",
+      "start": 5.0,
+      "duration": 4.0,
+      "layer": "base",
+      "kind": "logo",
+      "intent": "Logo SpaceHey su fondo cielo, reveal con zoom e poi fermo",
+      "suggest": {
+        "primary": "?logo SpaceHey ritagliato da uno screenshot del sito",
+        "alternatives": [
+          "?titolo del sito catturato dal tuo browser"
+        ],
+        "why": "Nomini la piattaforma: il logo chiude il blocco e fissa il nome nella memoria."
+      },
+      "animation": "push-in-fast",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "cut"
+      },
+      "sfx": [],
+      "text": null
+    },
+    {
+      "id": "s04",
+      "start": 7.5,
+      "duration": 1.0,
+      "layer": "overlay",
+      "kind": "text",
+      "intent": "Cartello in basso: 'esiste dal 2003'",
+      "suggest": {
+        "primary": "?testo animato: lo crei in Resolve con Text+",
+        "alternatives": [],
+        "why": "Il dato chiave va letto, non ascoltato di sfuggita."
+      },
+      "animation": "static",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "cut"
+      },
+      "sfx": [],
+      "text": "esiste dal 2003"
+    }
+  ]
+}

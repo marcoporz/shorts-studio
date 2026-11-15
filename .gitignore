@@ -1,0 +1,20 @@
+# ambiente
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# generati (rigenerabili con i comandi)
+build/
+
+# indice media (rigenerabile con `scan`)
+media/index.json
+media/.scan-cache.json
+
+# media personali: tieni solo le istruzioni
+media/**
+!media/**/
+!media/**/README.md
+
+# export e cache locali
+*.log

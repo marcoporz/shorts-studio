@@ -1,0 +1,13 @@
+{
+  "slug": "esempio-spacehey",
+  "title": "Cosa sono questi social che NESSUNO conosce?",
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "style": "frutiger-aero",
+  "language": "it",
+  "voiceover": "",
+  "notes": "Progetto di esempio: shotlist completa con soli suggerimenti '?'. Serve per vedere il formato, non per essere esportato così com'e."
+}

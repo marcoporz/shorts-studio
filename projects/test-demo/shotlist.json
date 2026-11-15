@@ -1,0 +1,211 @@
+{
+  "project": "test-demo",
+  "title": "Test pipeline",
+  "format": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "style": "ps2-crt",
+  "voiceover": "build/test-demo/vo_clean.wav",
+  "voiceover_duration": 8.34,
+  "bgm": {
+    "file": "media/bgm/test-loop.wav",
+    "gain_db": -26,
+    "duck_db": -9,
+    "loop": true
+  },
+  "slots": [
+    {
+      "id": "s01",
+      "start": 0.0,
+      "duration": 1.2,
+      "layer": "base",
+      "kind": "clip",
+      "intent": "Hook: gameplay Fallout 3, uscita dal Vault, camera che spinge avanti",
+      "suggest": {
+        "primary": "?gameplay tuo: Fallout 3, apertura porta del Vault 101",
+        "alternatives": [
+          "?screenshot del Vault 101 dal tuo save"
+        ],
+        "why": "La prima frase deve agganciare: il momento piu iconico del gioco e l'uscita dal Vault."
+      },
+      "animation": "push-in-slow",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "cut"
+      },
+      "sfx": [
+        {
+          "file": "media/sfx/impatto-1.wav",
+          "at": 0.0,
+          "gain_db": -8
+        }
+      ],
+      "text": null
+    },
+    {
+      "id": "s02",
+      "start": 1.2,
+      "duration": 1.6,
+      "layer": "base",
+      "kind": "screenshot",
+      "intent": "Screenshot di una wiki o del menu di New Vegas, pan da sinistra a destra",
+      "suggest": {
+        "primary": "?screenshot tuo: schermata Pip-Boy di New Vegas",
+        "alternatives": [
+          "?foto del case del gioco"
+        ],
+        "why": "Stai introducendo il confronto: serve un'immagine statica che mostri l'interfaccia."
+      },
+      "animation": "pan-lr",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "glitch",
+        "duration": 0.4
+      },
+      "sfx": [
+        {
+          "file": "media/sfx/transizione-1.wav",
+          "at": 0.0,
+          "gain_db": -12
+        }
+      ],
+      "text": null
+    },
+    {
+      "id": "s03",
+      "start": 2.8,
+      "duration": 0.98,
+      "layer": "base",
+      "kind": "logo",
+      "intent": "Logo Fallout New Vegas su fondo nero, reveal veloce",
+      "suggest": {
+        "primary": "?logo ufficiale New Vegas (press kit)",
+        "alternatives": [
+          "?titolo del gioco catturato dal tuo footage"
+        ],
+        "why": "Nomini il gioco: il logo rende immediato di cosa parli."
+      },
+      "animation": "push-in-fast",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "flash",
+        "duration": 0.4
+      },
+      "sfx": [
+        {
+          "file": "media/sfx/pop-1.wav",
+          "at": 0.05,
+          "gain_db": -10
+        }
+      ],
+      "text": null
+    },
+    {
+      "id": "s04",
+      "start": 3.78,
+      "duration": 1.46,
+      "layer": "base",
+      "kind": "image",
+      "intent": "Confronto affiancato delle due copertine, leggero drift verso l'alto",
+      "suggest": {
+        "primary": "?due copertine affiancate (Fallout 3 | New Vegas)",
+        "alternatives": [
+          "?screenshot del tuo montaggio precedente"
+        ],
+        "why": "La frase dice 'e il migliore': il confronto visivo deve essere immediato."
+      },
+      "animation": "drift-up",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "whip-pan",
+        "duration": 0.4
+      },
+      "sfx": [],
+      "text": null
+    },
+    {
+      "id": "s05",
+      "start": 5.24,
+      "duration": 0.9,
+      "layer": "base",
+      "kind": "clip",
+      "intent": "Gameplay New Vegas: dialog con un NPC, primo piano",
+      "suggest": {
+        "primary": "?gameplay tuo: dialogo con Sunny Smiles",
+        "alternatives": [
+          "?clip del tuo precedente video su New Vegas"
+        ],
+        "why": "Stai motivando la scelta: un dialogo mostra la scrittura del gioco."
+      },
+      "animation": "static",
+      "zoom": 1.05,
+      "transition_in": {
+        "type": "cross-dissolve",
+        "duration": 0.2
+      },
+      "sfx": [],
+      "text": null
+    },
+    {
+      "id": "s06",
+      "start": 6.14,
+      "duration": 2.2,
+      "layer": "base",
+      "kind": "clip",
+      "intent": "Gameplay Fallout 3: esplorazione delle rovine, camera lenta",
+      "suggest": {
+        "primary": "?gameplay tuo: Downtown DC con il cielo verde",
+        "alternatives": [
+          "?clip della sigla del tuo video"
+        ],
+        "why": "Chiudi il ragionamento sul primo gioco mentre la voce passa al verdetto."
+      },
+      "animation": "pull-out-slow",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "dip-to-black",
+        "duration": 0.4
+      },
+      "sfx": [
+        {
+          "file": "media/sfx/transizione-1.wav",
+          "at": 1.9,
+          "gain_db": -14
+        }
+      ],
+      "text": null
+    },
+    {
+      "id": "s07",
+      "start": 6.3,
+      "duration": 0.8,
+      "layer": "overlay",
+      "kind": "logo",
+      "intent": "Logo del canale in basso a destra, piccola comparsa",
+      "suggest": {
+        "primary": "media/logos/canale.png",
+        "alternatives": [],
+        "why": "Branding leggero: non deve coprire il gameplay, ma chiudere il video con identita."
+      },
+      "animation": "static",
+      "zoom": 1.0,
+      "transition_in": {
+        "type": "cut"
+      },
+      "sfx": [],
+      "text": null
+    }
+  ],
+  "captions": {
+    "enabled": true,
+    "position": "lower",
+    "max_words": 4,
+    "max_chars": 30,
+    "max_duration": 3.0,
+    "font_size": 62,
+    "uppercase": false,
+    "background": 0.55
+  }
+}
