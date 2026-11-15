@@ -121,6 +121,29 @@ Passano tutti `luac -p` e non hanno percorsi assoluti (tranne `OUT_DIR`, che è 
 
 ---
 
+## Studio 21.1.1: qualità (opzionale)
+
+Se hai DaVinci Resolve Studio 21.1.1, puoi attivare la modalità qualità nello shotlist:
+
+```json
+"animation_mode": "fusion",
+"native_transitions": true,
+"transition_handle": 0.6,
+"audio": { "voice_isolation": true, "voice_isolation_amount": 60 },
+"bgm": { "duck": true, "duck_db": -9 }
+```
+
+Cosa cambia:
+- **Animazioni Fusion**: zoom/pan vivono in un Fusion comp attaccato al clip timeline. Dopo `Replace Selected Clip` (F11) l'animazione **resta** e si applica al tuo media.
+- **Transizioni native**: `cross-dissolve` e `dip-to-black` diventano transizioni vere di Resolve (non overlay). Servono handle (default 0.6s) nei segnaposto.
+- **BGM ducking**: la musica si abbassa automaticamente sotto la voce (`sidechaincompress`).
+- **Voice Isolation**: attiva su A1 per talking head (riduce rumore/riverbero).
+- **Micro-fade**: 5ms fade in/out su voce e SFX per evitare click.
+
+Progetti esistenti senza questi campi restano in modalità `baked` (comportamento attuale).
+
+---
+
 ## Cartelle
 
 ```text

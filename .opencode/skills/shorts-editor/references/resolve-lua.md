@@ -68,7 +68,7 @@ quindi `endFrame = frames` da una durata di `frames` frame (non `frames - 1`).
 
 ---
 
-## Cosa NON si puo fare dall'API
+## Cosa NON si puo fare dall'API (Resolve free)
 
 | Cosa | Stato | Alternativa |
 |---|---|---|
@@ -81,6 +81,13 @@ quindi `endFrame = frames` da una durata di `frames` frame (non `frames - 1`).
 | volume/pan audio del clip | non esposto | gain con ffmpeg (già fatto) + Fairlight |
 | testo con font preciso via API | non esposto | Text+ / template |
 | render automatico affidabile | parziale | Deliver page / `90_render_queue.lua` |
+
+**In Studio 21.1.1** (con `animation_mode: fusion` + `native_transitions: true`):
+- `tlItem:AddFusionComp()` → crea Fusion comp sul clip timeline (animazioni persistono dopo sostituzione)
+- `timelineItem:AddTransition({type="Cross Dissolve", ...})` → transizione nativa cross-dissolve
+- `timelineItem:AddTransition({type="Dip To Color Dissolve", ...})` → transizione nativa dip-to-black
+- `timeline:SetVoiceIsolationState(1, {isEnabled=true, amount=60})` → Voice Isolation su A1
+- `sidechaincompress` in ffmpeg per BGM ducking automatico
 
 Sono invece esposti e li usiamo: `ZoomX`/`ZoomY`, `Opacity`, `CompositeMode` (blend mode).
 
@@ -107,12 +114,20 @@ I marker sono la documentazione del montaggio: non cancellarli finche non hai fi
 
 ## Sostituzione e cosa resta
 
-- **V1/V2**: `Replace Selected Clip` (o F11) sostituisce il segnaposto. Zoom/opacity/blend statici
-  restano; i movimenti di camera cotti nel segnaposto no (riapplica il template Fusion).
+- **V1/V2 (modalita `baked` default)**: `Replace Selected Clip` (o F11) sostituisce il segnaposto.
+  Zoom/opacity/blend statici restano; i movimenti di camera cotti nel segnaposto no (riapplica
+  il template Fusion).
+- **V1/V2 (modalita `animation_mode: fusion`)**: `Replace Selected Clip` (o F11) sostituisce il
+  segnaposto. Il Fusion comp sul clip timeline **resta** con tutte le keyframe e si applica al
+  nuovo media. Zoom/opacity/blend statici restano. **Non riapplicare** le animazioni.
 - **V1 A-roll**: le clip `source: "face"` sono gia media veri, tagliati da `vo_clean.mp4`. Non vanno
-  sostituite: non hanno una card e il marker lo dice. Un eventuale push-in si applica a mano.
-- **V3**: le transizioni sono clip separati. Non si toccano quando sostituisci V1/V2, quindi
-  glitch/flash/dip/whip-pan restano gia a posto.
+  sostituite: non hanno una card e il marker lo dice. Un eventuale push-in si applica a mano
+  (template Fusion in `presets/fusion/`).
+- **V3 (modalita `baked`)**: le transizioni sono clip separati (overlay). Non si toccano quando
+  sostituisci V1/V2, quindi glitch/flash/dip/whip-pan restano gia a posto.
+- **V3 (modalita `native_transitions: true`)**: `cross-dissolve` e `dip-to-black` sono transizioni
+  native di Resolve (item separati in track). Non si toccano. glitch/flash/whip-pan restano overlay
+  su V3 e non si toccano.
 - **V4**: le caption sono clip video, non una traccia sottotitoli. Restano sopra il montaggio e non
   vanno rifatte. Se cambi una parola, rigenera da `words.json` con `shorts.py captions <slug> --force`
   e rilancia il Lua (la caption e cotta nell'immagine, non e testo editabile in Resolve).

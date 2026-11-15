@@ -206,3 +206,11 @@ clean          #000000  #FFFFFF  #FF4D4D
 
 Regola: **massimo 1 SFX ogni 2-3 secondi**. Se ce ne sono di piu, il video diventa rumore.
 La transizione sonora va sul **taglio**, non a meta del clip.
+
+---
+
+## Studio 21.1.1: cosa cambia per volto e transizioni
+
+- **Volto**: con `animation_mode: fusion` i segnaposto della faccia sono statici; eventuali zoom/pan sul volto vanno applicati come Fusion comp dopo la sostituzione (template in `presets/fusion/`).
+- **Transizioni native**: `cross-dissolve` e `dip-to-black` diventano transizioni native di Resolve se `native_transitions: true`. `glitch`, `flash`, `whip-pan` restano overlay V3. Le transizioni native richiedono handle nei segnaposto (default 0.6s).
+- **Animazioni**: con `animation_mode: fusion` le animazioni vivono in Fusion comp sul clip timeline e **sopravvivono** alla sostituzione del segnaposto. Non serve riapplicarle.

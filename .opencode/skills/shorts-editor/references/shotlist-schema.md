@@ -43,11 +43,16 @@ Validato da: `python scripts/shorts.py validate <slug>`
 | `title` | string | no | usato solo per leggibilita |
 | `format` | object | si | **1080x1920 @ 30** e il default per Shorts |
 | `style` | string | si | `anime90`, `crt`, `ps2`, `frutiger-aero`, `clean` |
+| `animation_mode` | enum | no | `baked` (default) o `fusion`: modalita animazione segnaposto |
+| `native_transitions` | boolean | no | `false` default; `true` richiede `animation_mode: fusion` |
+| `transition_handle` | number | no | secondi (0.2-1.5); default 0.6 se `native_transitions` |
+| `audio` | object | no | `{ voice_isolation: bool, voice_isolation_amount: 0-100 }` |
+| `style` | string | si | `anime90`, `crt`, `ps2`, `frutiger-aero`, `clean` |
 | `voiceover` | string | si | percorso di `vo_clean.wav` (o `.mp4`) |
 | `voiceover_duration` | number | si | durata in secondi del voiceover pulito |
 | `face_fit` | string | no | `crop` (default) o `fit`: come adattare il talking head al verticale |
 | `face_video` | string | no | override avanzato: A-roll gia tagliato in sync. Default `build/<slug>/vo_clean.mp4` |
-| `bgm` | object/null | no | se `null`, niente musica |
+| `bgm` | object/null | no | se `null`, niente musica; vedi sotto per campi `duck`/`duck_db` |
 | `captions` | object | no | default attivo, terzo inferiore; vedi sotto |
 | `slots` | array | si | almeno uno |
 
@@ -55,18 +60,29 @@ Validato da: `python scripts/shorts.py validate <slug>`
 > (`"language": "auto" | "it" | "en" | ...`) oppure con `transcribe --language`.
 > Vale per italiano e inglese senza cambiare pipeline.
 
+### Campi Studio 21.1.1 (opzionali)
+
+| Campo | Tipo | Note |
+|---|---|---|
+| `animation_mode` | enum | `baked` (default) o `fusion`. In `fusion` i segnaposto animati sono statici; l'animazione e un Fusion comp sul clip timeline che sopravvive a `Replace Selected Clip`. |
+| `native_transitions` | boolean | `false` default; `true` = `cross-dissolve` e `dip-to-black` diventano transizioni native di Resolve. Richiede `animation_mode: fusion`. |
+| `transition_handle` | number | Secondi (0.2-1.5). Default 0.6 se `native_transitions`. Handle extra nei segnaposto base per le transizioni native. |
+| `audio` | object | `{ voice_isolation: bool, voice_isolation_amount: 0-100 }`. Voice Isolation su A1 per talking head. Default `false`. |
+
 ### `bgm`
 
 | Campo | Tipo | Note |
 |---|---|---|
 | `file` | string | percorso in `media/bgm/` |
 | `gain_db` | number | negativo. -24 e un buon punto di partenza |
-| `duck_db` | number | quanto abbassare sotto la voce (indicativo, il ducking e manuale) |
+| `duck_db` | number | quanto abbassare sotto la voce (indicativo, per il ducking automatico: -3 a -24) |
 | `loop` | bool | se true la BGM viene loopata fino alla durata della timeline |
+| `duck` | boolean | `false` default; `true` = genera `bgm_duck.wav` con sidechaincompress |
 
-Da `lua` viene creato `build/<slug>/audio/bgm_mix.wav`: loop, taglio esatto alla durata
-della timeline, fade in/out e gain sono già dentro. In timeline c'è **un solo clip**.
-Il ducking sotto la voce resta manuale (Fairlight, keyframe).
+Da `lua` viene creato `build/<slug>/audio/bgm_mix.wav` (o `bgm_duck.wav` se `duck: true`):
+loop, taglio esatto alla durata della timeline, fade in/out e gain sono già dentro. In timeline c'è **un solo clip**.
+Con `duck: true` il ducking e automatico via `sidechaincompress` (voice come sidechain, ratio ~ |duck_db|*0.9).
+Se il filtro fallisce, torna al mix standard e avvisa. Il ducking manuale (Fairlight, keyframe) non serve piu.
 
 ### `captions`
 
@@ -211,14 +227,16 @@ Viene applicato come `CompositeMode` sul clip. Se il blend non serve, lascia `no
 
 `cut`, `cross-dissolve`, `dip-to-black`, `glitch`, `whip-pan`, `flash`
 
-| tipo | automatico | effetto |
-|---|---|---|
-| `cut` | si | nessun overlay, taglio netto |
-| `glitch` | si | bande RGB/scanline per 0.2-0.8s sul taglio |
-| `flash` | si | lampo bianco |
-| `dip-to-black` | si | buio e ritorno |
-| `whip-pan` | si | strisce di movimento orizzontali |
-| `cross-dissolve` | **no** | vera dissolvenza tra clip: va fatta a mano in Edit |
+| tipo | automatico | native* | effetto |
+|---|---|---|---|
+| `cut` | si | no | nessun overlay, taglio netto |
+| `glitch` | si | no | bande RGB/scanline per 0.2-0.8s sul taglio |
+| `flash` | si | no | lampo bianco |
+| `dip-to-black` | si | **si** | buio e ritorno (nativo se `native_transitions: true`) |
+| `whip-pan` | si | no | strisce di movimento orizzontali |
+| `cross-dissolve` | **no** | **si** | vera dissolvenza tra clip (nativa se `native_transitions: true`) |
+
+* `native` = transizione vera di Resolve (non overlay). Richiede `native_transitions: true` + `animation_mode: fusion` + handle nei segnaposto (`transition_handle`). Se gli handle non bastano, fallback all'overlay con avviso.
 
 Gli automatici diventano overlay alpha in `build/<slug>/transitions/`, messi su V3 a cavallo del
 taglio. **Restano anche dopo `Replace Selected Clip`**, perche non sono dentro il segnaposto.

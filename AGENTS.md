@@ -29,12 +29,16 @@ Nessun servizio a pagamento, nessun upload, nessun download automatico di media.
    o nodi Fusion. Le transizioni automatiche sono overlay alpha su V3 (`glitch`, `flash`,
    `dip-to-black`, `whip-pan`); `cross-dissolve`, animazioni di camera e nodi Fusion restano manuali
    o via template. Zoom, opacity e blend mode invece sì.
+   Con `animation_mode: fusion` i nodi Fusion sono supportati via `AddFusionComp` su clip timeline.
+   Con `native_transitions: true` le transizioni `cross-dissolve` e `dip-to-black` diventano native.
 8. **Caption obbligatorie** per gli Shorts: statiche, terzo inferiore, max 2 righe, generate da
    `words.json` e messe su V4. Non sono una traccia sottotitoli: sono clip alpha + `captions.srt`.
 9. **Talking head**: se il sorgente e un video, usa `render-audio --video`. Gli slot con
    `"source": "face"` devono essere `layer: "base"`, `kind: "clip"`, `animation: "static"`; vengono
    tagliati in `build/<slug>/aroll/` e **non vanno sostituiti**. Non inventare `vo_clean.mp4`:
    se manca, fermati e chiedi di lanciare `render-audio --video`.
+   Con `animation_mode: fusion` gli slot faccia restano statici; animazioni sul volto vanno applicate
+   dopo come Fusion comp (template in `presets/fusion/`).
 10. Parla italiano con l'utente. Identificatori, chiavi JSON e codice in inglese.
 
 ## Comandi (usa sempre il venv)
@@ -98,6 +102,8 @@ Carica la skill `shorts-editor` per lo schema completo dello shotlist, i limiti 
 - [ ] Se ci sono slot faccia: `build/<slug>/aroll/` contiene le clip, i marker dicono di non
       sostituirle e `vo_clean.mp4` copre tutti i tempi.
 - [ ] Le transizioni automatiche sono tra `glitch`/`flash`/`dip-to-black`/`whip-pan`.
+- [ ] Se `native_transitions: true`: `cross-dissolve` e `dip-to-black` sono native (richiedono handle).
+- [ ] Se `animation_mode: fusion`: segnaposto animati statici, Fusion comp su clip V1 base.
 - [ ] I `?` sono elencati nel messaggio finale.
 - [ ] Lo script Lua passa `luac -p` (se disponibile) e non contiene percorsi assoluti.
 - [ ] Il report Lua (o il mock) mostra V3 transizioni e V4 caption con i conteggi attesi.

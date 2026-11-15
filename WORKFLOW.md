@@ -320,6 +320,12 @@ Le transizioni automatiche sono overlay alpha in `build/<slug>/transitions/`, po
 del taglio su **V3**. Non sono dentro il segnaposto, quindi **sopravvivono** a `Replace Selected Clip`.
 `cross-dissolve` no: quella e una vera transizione tra clip e va fatta a mano in Edit.
 
+> **Studio 21.1.1 native_transitions**: se nello shotlist hai `"native_transitions": true` e
+> `"animation_mode": "fusion"`, le transizioni `cross-dissolve` e `dip-to-black` diventano
+> **transizioni native di Resolve** (non overlay). Servono handle (default 0.6s) nei segnaposto:
+> i segnaposto vengono generati con handle extra. `glitch`, `flash`, `whip-pan` restano overlay V3.
+> Se gli handle non bastano, il Lua fa fallback all'overlay e avvisa.
+
 Le caption sono descritte dal blocco `captions` (vedi sopra): il default e gia buono per gli Shorts.
 Metti `"enabled": false` solo se l'utente lo chiede esplicitamente.
 
@@ -421,6 +427,11 @@ Ogni segnaposto e un file unico (`s01_base.mp4`), usato una sola volta. Questo r
 > **Talking head**: gli slot `source: "face"` non sono segnaposto. Sono clip vere in
 > `build/<slug>/aroll/`, gia tagliate e montate su V1. Non sostituirle: passa direttamente al
 > segnaposto successivo. Anche il marker te lo ricorda.
+
+> **Studio 21.1.1 Quality Mode**: se nello shotlist hai `"animation_mode": "fusion"`, i segnaposto
+> animati vengono generati **statici** (senza zoompan cotto). L'animazione e un Fusion comp attaccato
+> al clip timeline: dopo `Replace Selected Clip` (F11) l'animazione **resta** e si applica al tuo
+> media vero. **Non riapplicare** zoom/pan dopo la sostituzione.
 
 ### Metodo consigliato — Replace Selected Clip
 

@@ -38,6 +38,40 @@ tagliati automaticamente e non vanno sostituiti.
   faccia sono `layer: "base"`, `kind: "clip"`, `animation: "static"`; non vanno sostituiti perche
   `placeholders` li taglia da `vo_clean.mp4` in `build/<slug>/aroll/`. Tieni il terzo inferiore libero
   per le caption. Se manca `vo_clean.mp4`, non improvvisare: chiedi `render-audio --video`.
+
+### Studio 21.1.1 Quality Mode (opzionale)
+
+Se l'utente ha DaVinci Resolve Studio 21.1.1, puoi attivare la modalità qualità nello shotlist
+aggiungendo questi campi top-level (tutti opzionali, default al comportamento attuale `baked`):
+
+```json
+"animation_mode": "fusion",
+"native_transitions": true,
+"transition_handle": 0.6,
+"audio": { "voice_isolation": true, "voice_isolation_amount": 60 },
+"bgm": { "duck": true, "duck_db": -9 }
+```
+
+**Cosa cambia per te (agente):**
+- Imposta `animation_mode: "fusion"` e `native_transitions: true` per i progetti Studio 21.1.1.
+- `transition_handle` (default 0.6s) definisce gli handle nei segnaposto per le transizioni native.
+- `audio.voice_isolation` attiva Voice Isolation su A1 (talking head).
+- `bgm.duck` attiva il ducking automatico della BGM sotto la voce.
+
+**Cosa cambia per l'utente (cosa dire nel messaggio finale):**
+- **Animazioni Fusion**: i segnaposto animati sono statici; l'animazione è in un Fusion comp sul clip timeline. Dopo `Replace Selected Clip` (F11) l'animazione **resta** e si applica al media vero. **Non riapplicare** zoom/pan.
+- **Transizioni native**: `cross-dissolve` e `dip-to-black` sono transizioni vere di Resolve. Servono handle (default 0.6s) nei segnaposto. `glitch`, `flash`, `whip-pan` restano overlay V3. Se gli handle non bastano, il Lua fa fallback all'overlay e avvisa.
+- **BGM ducking**: la musica si abbassa automaticamente sotto la voce.
+- **Voice Isolation**: attiva su A1 per talking head (riduce rumore/riverbero).
+- **Micro-fade**: 5ms fade in/out su voce e SFX per evitare click.
+
+**Regole di validazione che devi rispettare:**
+- `native_transitions` richiede `animation_mode: "fusion"`.
+- `transition_handle` tra 0.2 e 1.5 secondi.
+- `audio.voice_isolation_amount` tra 0 e 100.
+- `bgm.duck_db` negativo tra -24 e -3.
+- `animation_mode` in `baked|fusion`.
+- Progetti esistenti senza campi restano in `baked` (comportamento identico a oggi).
 - Se il video e lungo, non mettere un cambio visivo ogni secondo: 1.5-3s e il ritmo giusto.
 - Non mettere una transizione su ogni taglio: scegli solo i punti di svolta (hook, capitoli, rivelazione).
 
