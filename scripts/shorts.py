@@ -1905,6 +1905,7 @@ def build_transitions(slug: str, shotlist: Dict[str, Any], force: bool = False) 
     tdir = bdir / "transitions"
     tdir.mkdir(parents=True, exist_ok=True)
     fps = float((shotlist.get("format") or {}).get("fps") or 30)
+    native_tr = shotlist.get("native_transitions", False)
     manifest: List[Dict[str, Any]] = []
     warned_dissolve = False
     last_end = -1.0
@@ -1914,12 +1915,16 @@ def build_transitions(slug: str, shotlist: Dict[str, Any], force: bool = False) 
         kind = str(tr.get("type") or "cut")
         if kind == "cut":
             continue
-        if kind == "cross-dissolve":
+        
+        is_native_candidate = kind in ("cross-dissolve", "dip-to-black")
+        is_native = native_tr and is_native_candidate
+        
+        if kind == "cross-dissolve" and not is_native:
             if not warned_dissolve:
                 log("  [warn] cross-dissolve resta manuale: l'API free non crea transizioni")
                 warned_dissolve = True
             continue
-        if kind not in AUTO_TRANSITIONS:
+        if kind not in AUTO_TRANSITIONS and not is_native:
             continue
 
         sid = str(slot.get("id"))
@@ -1937,23 +1942,35 @@ def build_transitions(slug: str, shotlist: Dict[str, Any], force: bool = False) 
             log("  [warn] transizione %s sovrapposta alla precedente: la salto" % sid)
             continue
         last_end = at + dur
-        out = tdir / ("t_%s_%s.mov" % (sid, kind))
-        if force or not out.exists():
-            seed = int(hashlib.md5(("%s:%s" % (sid, kind)).encode("utf-8")).hexdigest()[:8], 16)
-            frames_img = transition_frames(kind, frames, seed)
-            encode_alpha_frames(frames_img, out, fps)
-        manifest.append({
-            "file": rel(out),
+        
+        entry = {
             "at": round(at, 3),
             "duration": round(dur, 3),
             "type": kind,
             "slot": sid,
-        })
+            "native": is_native,
+        }
+        
+        if is_native:
+            # Transizione nativa: niente file overlay, solo manifest per Lua
+            log("  transizione nativa: %s su %s (%.2fs)" % (kind, sid, dur))
+            manifest.append(entry)
+        else:
+            # Overlay generato (glitch, flash, whip-pan)
+            out = tdir / ("t_%s_%s.mov" % (sid, kind))
+            if force or not out.exists():
+                seed = int(hashlib.md5(("%s:%s" % (sid, kind)).encode("utf-8")).hexdigest()[:8], 16)
+                frames_img = transition_frames(kind, frames, seed)
+                encode_alpha_frames(frames_img, out, fps)
+            entry["file"] = rel(out)
+            manifest.append(entry)
 
     write_json(tdir / "manifest.json", manifest)
+    native_count = sum(1 for m in manifest if m.get("native"))
+    overlay_count = len(manifest) - native_count
     if manifest:
-        log("  transizioni: %d overlay (%s)" % (
-            len(manifest), ", ".join(sorted({m["type"] for m in manifest}))))
+        log("  transizioni: %d native, %d overlay (%s)" % (
+            native_count, overlay_count, ", ".join(sorted({m["type"] for m in manifest}))))
     return manifest
 
 
@@ -2001,11 +2018,50 @@ def cmd_placeholders(args: argparse.Namespace) -> int:
     if int(fmt.get("width") or 0) != OUT_W or int(fmt.get("height") or 0) != OUT_H:
         die("questo pipeline genera segnaposto 1080x1920. Cambia format nello shotlist.")
 
+    # --- Fingerprint per invalidazione segnaposto ---
+    import hashlib, json
+    settings_fp = hashlib.md5(json.dumps({
+        "animation_mode": shotlist.get("animation_mode", "baked"),
+        "native_transitions": shotlist.get("native_transitions", False),
+        "transition_handle": shotlist.get("transition_handle", 0.6),
+        "fps": fps,
+        "width": int(fmt.get("width") or 1080),
+        "height": int(fmt.get("height") or 1920),
+        "generator_version": 2,
+    }, sort_keys=True).encode()).hexdigest()[:12]
+
     bdir = build_dir(slug)
     pdir = bdir / "placeholders"
     pdir.mkdir(parents=True, exist_ok=True)
 
-    manifest: Dict[str, Dict[str, str]] = {}
+    fp_path = pdir / "settings_fingerprint.json"
+    force_regen = args.force
+    if fp_path.exists():
+        try:
+            old = read_json(fp_path).get("fingerprint")
+            if old != settings_fp:
+                force_regen = True
+                log("  [info] fingerprint cambiato ({} -> {}): rigenero segnaposto".format(old, settings_fp))
+        except Exception:
+            force_regen = True
+    else:
+        force_regen = True
+
+    if force_regen:
+        for f in pdir.glob("*_base.mp4"):
+            f.unlink(missing_ok=True)
+        for f in pdir.glob("*_ovl.mov"):
+            f.unlink(missing_ok=True)
+        for f in pdir.glob("*.png"):
+            f.unlink(missing_ok=True)
+
+    # Handle frames per transizioni native
+    handle_frames = 0
+    if shotlist.get("native_transitions"):
+        handle_sec = float(shotlist.get("transition_handle", 0.6))
+        handle_frames = max(1, math.ceil(handle_sec * fps))
+
+    manifest: Dict[str, Dict[str, Any]] = {}
     slots = shotlist.get("slots") or []
     face_slots = [s for s in slots if s.get("source") == "face"]
     face_src: Optional[Path] = None
@@ -2030,6 +2086,9 @@ def cmd_placeholders(args: argparse.Namespace) -> int:
                     face_end, src_dur))
 
     log("Genero %d elementi (segnaposto + A-roll)..." % len(slots))
+
+    anim_mode = shotlist.get("animation_mode", "baked")
+    native_tr = shotlist.get("native_transitions", False)
 
     for i, slot in enumerate(slots, 1):
         sid = str(slot.get("id"))
@@ -2059,12 +2118,42 @@ def cmd_placeholders(args: argparse.Namespace) -> int:
             if args.force or not card.exists():
                 make_base_card(slot, shotlist).save(card, quality=92)
             if args.force or not out.exists():
-                encode_base(card, out, slot, fps)
-            manifest[sid] = {"base": rel(out)}
+                frames = slot_frames(slot, fps)
+                is_animated = slot.get("animation", "static") != "static"
+                if anim_mode == "fusion" and is_animated:
+                    # Fusion: genera statico, niente zoompan
+                    vf = "format=yuv420p"
+                else:
+                    vf = zoompan_filter(slot.get("animation", "static"), frames, fps) + ",format=yuv420p"
+                
+                source_start = 30  # handle sinistro fisso 1s sorgente
+                if native_tr:
+                    total_frames = frames + 2 * handle_frames
+                    run([
+                        "ffmpeg", "-y", "-ss", "%.3f" % (source_start / 30.0), "-i", str(card), "-vf", vf,
+                        "-frames:v", str(total_frames), "-r", str(fps),
+                        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out),
+                    ])
+                else:
+                    run([
+                        "ffmpeg", "-y", "-i", str(card), "-vf", vf,
+                        "-frames:v", str(frames), "-r", str(fps),
+                        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out),
+                    ])
+            manifest[sid] = {
+                "base": rel(out),
+                "animation_mode": anim_mode,
+                "handle_frames": handle_frames if native_tr else 0,
+                "animation": slot.get("animation", "static"),
+            }
         if i % 5 == 0 or i == len(slots):
             log("  %d/%d" % (i, len(slots)))
 
     write_json(pdir / "manifest.json", manifest)
+    # Salva fingerprint
+    write_json(fp_path, {"fingerprint": settings_fp, "animation_mode": anim_mode})
     log("\nSegnaposto in build/%s/placeholders/" % slug)
     log("  manifest.json")
     if face_slots:
