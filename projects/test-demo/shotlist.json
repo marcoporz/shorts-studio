@@ -7,13 +7,21 @@
     "fps": 30
   },
   "style": "ps2-crt",
+  "animation_mode": "fusion",
+  "native_transitions": true,
+  "transition_handle": 0.6,
+  "audio": {
+    "voice_isolation": true,
+    "voice_isolation_amount": 60
+  },
   "voiceover": "build/test-demo/vo_clean.wav",
   "voiceover_duration": 8.34,
   "bgm": {
     "file": "media/bgm/test-loop.wav",
     "gain_db": -26,
     "duck_db": -9,
-    "loop": true
+    "loop": true,
+    "duck": true
   },
   "slots": [
     {

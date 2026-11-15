@@ -59,6 +59,7 @@ ANIMATIONS = (
     "pan-rl",
     "drift-up",
 )
+ANIMATION_MODES = ("baked", "fusion")
 TRANSITIONS = ("cut", "cross-dissolve", "dip-to-black", "glitch", "whip-pan", "flash")
 BLENDS = ("normal", "add", "multiply", "screen", "overlay")
 
@@ -1198,6 +1199,50 @@ def cmd_validate(args: argparse.Namespace) -> int:
                         warnings.append("captions.background fuori da 0-1 (verra limitato)")
                 except Exception:
                     errors.append("captions.background non numerico")
+
+    # --- Studio 21.1.1 quality fields ---
+    # animation_mode
+    anim_mode = shotlist.get("animation_mode", "baked")
+    if anim_mode not in ANIMATION_MODES:
+        errors.append("animation_mode '%s' non valido (%s)" % (anim_mode, ", ".join(ANIMATION_MODES)))
+
+    # native_transitions
+    native_tr = shotlist.get("native_transitions", False)
+    if native_tr and anim_mode != "fusion":
+        errors.append("native_transitions richiede animation_mode: fusion")
+
+    # transition_handle
+    handle = shotlist.get("transition_handle")
+    if handle is not None:
+        try:
+            h = float(handle)
+            if h < 0.2 or h > 1.5:
+                errors.append("transition_handle fuori da 0.2-1.5s")
+        except Exception:
+            errors.append("transition_handle non numerico")
+
+    # audio.voice_isolation
+    audio = shotlist.get("audio") or {}
+    if audio.get("voice_isolation"):
+        amt = audio.get("voice_isolation_amount", 60)
+        try:
+            a = int(amt)
+            if a < 0 or a > 100:
+                errors.append("audio.voice_isolation_amount fuori da 0-100")
+        except Exception:
+            errors.append("audio.voice_isolation_amount non numerico")
+
+    # bgm.duck
+    bgm = shotlist.get("bgm") or {}
+    duck = bgm.get("duck", False)
+    duck_db = bgm.get("duck_db")
+    if duck and duck_db is not None:
+        try:
+            d = float(duck_db)
+            if d > -3 or d < -24:
+                warnings.append("bgm.duck_db fuori da -24..-3 (verra limitato)")
+        except Exception:
+            errors.append("bgm.duck_db non numerico")
 
     for w in warnings:
         log("  [warn] %s" % w)
