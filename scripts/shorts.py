@@ -2386,6 +2386,7 @@ local colorByKind = {
 local BLEND = { normal = 0, add = 1, multiply = 4, screen = 5, overlay = 6 }
 
 local placed = {}
+local placed_by_id = {}
 local function placeSlot(slot, trackIndex, mediaType)
   if slot.file == nil or slot.file == "" then return nil end
   local item = importFile(slot.file)
@@ -2410,6 +2411,7 @@ local function placeSlot(slot, trackIndex, mediaType)
       pcall(function() tlItem:SetProperty("CompositeMode", BLEND[slot.blend]) end)
     end
     placed[#placed + 1] = { id = slot.id, track = trackIndex, start = slot.start, dur = slot.duration }
+    placed_by_id[slot.id] = tlItem
   end
   return tlItem
 end
@@ -2432,14 +2434,146 @@ for _, slot in ipairs(DATA.slots) do
 end
 p("V2 overlay: " .. ovlCount .. " clip")
 
--- V3 transizioni (overlay alpha che coprono il taglio)
+-- Fusion comp per slot base animati (solo se animation_mode == fusion)
+if DATA.animation_mode == "fusion" then
+  local function addFusionAnim(tlItem, animName, frames)
+    if animName == "static" then return end
+    local comp = tlItem:AddFusionComp()
+    if not comp then
+      p("!! Fusion comp fallito per " .. tlItem:GetName() .. " (API non disponibile)")
+      return
+    end
+    comp:StartUndo()
+    local mi = comp:FindTool("MediaIn1")
+    local mo = comp:FindTool("MediaOut1")
+    if not mi or not mo then
+      p("!! MediaIn/MediaOut non trovati nel comp")
+      comp:EndUndo(false)
+      return
+    end
+    local t = comp:AddTool("Transform")
+    if not t then
+      p("!! Transform tool non disponibile")
+      comp:EndUndo(false)
+      return
+    end
+    local ok1 = t:ConnectInput("Input", mi)
+    local ok2 = mo:ConnectInput("Input", t)
+    if not ok1 or not ok2 then
+      p("!! Wiring Transform fallito")
+      comp:EndUndo(false)
+      return
+    end
+    -- Keyframe mapping
+    local keyframes = {}
+    if animName == "push-in-slow" then
+      keyframes = { {input="Size", [0]=1.0, [frames-1]=1.16} }
+    elseif animName == "push-in-fast" then
+      local f35 = math.floor(frames * 0.35)
+      keyframes = { {input="Size", [0]=1.0, [f35]=1.14} }
+    elseif animName == "pull-out-slow" then
+      keyframes = { {input="Size", [0]=1.16, [frames-1]=1.0} }
+    elseif animName == "pan-lr" then
+      keyframes = {
+        {input="Size", [0]=1.18, [frames-1]=1.18},
+        {input="Center", [0]={0.41, 0.5}, [frames-1]={0.59, 0.5}}
+      }
+    elseif animName == "pan-rl" then
+      keyframes = {
+        {input="Size", [0]=1.18, [frames-1]=1.18},
+        {input="Center", [0]={0.59, 0.5}, [frames-1]={0.41, 0.5}}
+      }
+    elseif animName == "drift-up" then
+      keyframes = {
+        {input="Size", [0]=1.14, [frames-1]=1.14},
+        {input="Center", [0]={0.5, 0.43}, [frames-1]={0.5, 0.57}}
+      }
+    end
+    for _, kf in ipairs(keyframes) do
+      local inp = kf.input
+      t:AddModifier(inp, "BezierSpline")
+      for frame, val in pairs(kf) do
+        if type(frame) == "number" then
+          t[inp][frame] = val
+        end
+      end
+      -- Verifica lettura indietro
+      local check = t:GetInput(inp, frames-1)
+      if check == nil then
+        p("!! Keyframe " .. inp .. " non scritto")
+      end
+    end
+    comp:EndUndo(true)
+  end
+
+  for _, slot in ipairs(DATA.slots) do
+    if slot.layer == "base" and slot.animation and slot.animation ~= "static" then
+      local tlItem = placed_by_id[slot.id]
+      if tlItem then
+        local frames = slot.frames or math.floor(slot.duration * fps + 0.5)
+        addFusionAnim(tlItem, slot.animation, frames)
+      end
+    end
+  end
+end
+
+-- Transizioni native (cross-dissolve, dip-to-black) se native_transitions attivo
+local nativeCount, overlayCount, failedCount = 0, 0, 0
+if DATA.native_transitions and DATA.transitions then
+  for _, tr in ipairs(DATA.transitions) do
+    if tr.native and (tr.type == "cross-dissolve" or tr.type == "dip-to-black") then
+      local incoming = placed_by_id[tr.slot]
+      if incoming then
+        local durFrames = math.floor((tr.duration or 0.4) * fps + 0.5)
+        local leftHandle = incoming:GetLeftOffset() or 0
+        local rightHandle = 0
+        -- trova outgoing clip (quello prima sullo stesso track)
+        local items = timeline:GetItemListInTrack("video", 1) or {}
+        for i, it in ipairs(items) do
+          if it:GetType() == "video" and it:GetEnd() == incoming:GetStart() then
+            rightHandle = it:GetRightOffset() or 0
+            break
+          end
+        end
+        if leftHandle >= durFrames/2 and rightHandle >= durFrames/2 then
+          local trType = (tr.type == "cross-dissolve") and "Cross Dissolve" or "Dip To Color Dissolve"
+          local trans = incoming:AddTransition({
+            type = trType,
+            category = "simple",
+            position = "start",
+            alignment = "center",
+            duration = durFrames
+          })
+          if trans and trans:GetDuration() >= durFrames * 0.5 then
+            p("Native transition: " .. trType .. " " .. trans:GetDuration() .. "f su " .. tr.slot)
+            nativeCount = nativeCount + 1
+          else
+            if trans then
+              timeline:DeleteClips({trans}, false)
+            end
+            p("!! Native transition fallita/insufficiente: fallback overlay su " .. tr.slot)
+            failedCount = failedCount + 1
+          end
+        else
+          p("!! Handle insufficienti per native transition su " .. tr.slot .. " (L=" .. leftHandle .. " R=" .. rightHandle .. " need=" .. math.ceil(durFrames/2) .. ")")
+          failedCount = failedCount + 1
+        end
+      end
+    end
+  end
+end
+
+-- V3 transizioni (overlay alpha per glitch/flash/whip-pan + fallback native fallite)
 if transTrack ~= nil then
   local trCount = 0
   for _, tr in ipairs(DATA.transitions) do
-    local item = importFile(tr.file)
-    if addClip(item, transTrack, 1, frame(tr.at)) ~= nil then trCount = trCount + 1 end
+    local isNative = tr.native and (tr.type == "cross-dissolve" or tr.type == "dip-to-black")
+    if not isNative then
+      local item = importFile(tr.file)
+      if addClip(item, transTrack, 1, frame(tr.at)) ~= nil then trCount = trCount + 1 end
+    end
   end
-  p("V" .. transTrack .. " transizioni: " .. trCount .. " clip")
+  p("V" .. transTrack .. " transizioni: " .. trCount .. " overlay, " .. nativeCount .. " native, " .. failedCount .. " fallite")
 end
 
 -- V4 caption (overlay alpha gia posizionate)
@@ -2456,6 +2590,18 @@ end
 local voItem = importFile(DATA.vo)
 if addClip(voItem, 1, 2, 0) ~= nil then p("A1 voiceover: ok") end
 
+-- Voice Isolation su A1 se richiesto
+if DATA.audio and DATA.audio.voice_isolation then
+  local amt = DATA.audio.voice_isolation_amount or 60
+  local ok = false
+  if timeline.SetVoiceIsolationState then
+    ok = timeline:SetVoiceIsolationState(1, {isEnabled=true, amount=amt})
+    p("Voice Isolation A1: " .. (ok and ("enabled amount=" .. amt) or "fallito (API)"))
+  else
+    p("!! Voice Isolation non disponibile in questa versione")
+  end
+end
+
 -- A2 sfx (il gain e gia stato cotto nei file da shorts.py)
 local sfxCount = 0
 for _, cue in ipairs(DATA.sfx) do
@@ -2464,9 +2610,16 @@ for _, cue in ipairs(DATA.sfx) do
 end
 p("A2 sfx: " .. sfxCount)
 
--- A3 bgm (file gia loopato, gain e fade cotti da shorts.py)
-if DATA.bgm ~= nil and DATA.bgm.file ~= nil then
-  local item = importFile(DATA.bgm.file)
+-- A3 bgm (usa bgm_duck se disponibile, altrimenti bgm)
+local bgmFile = nil
+if DATA.bgm_duck and DATA.bgm_duck.file then
+  bgmFile = DATA.bgm_duck.file
+  p("A3 bgm: usando file con ducking")
+elseif DATA.bgm and DATA.bgm.file then
+  bgmFile = DATA.bgm.file
+end
+if bgmFile then
+  local item = importFile(bgmFile)
   if addClip(item, 3, 2, 0) ~= nil then
     p("A3 bgm: ok")
   else
@@ -2490,7 +2643,16 @@ local function verify(trackType, trackIndex, label)
     local startF = it:GetStart()
     if startF == nil or startF < 0 then bad = bad + 1 end
   end
-  p("  " .. label .. ": " .. #items .. " clip sulla timeline")
+  -- Per transizioni, conta solo type=="transition"
+  if label:find("transizioni") then
+    local transCount = 0
+    for _, it in ipairs(items) do
+      if it:GetType() == "transition" then transCount = transCount + 1 end
+    end
+    p("  " .. label .. ": " .. #items .. " clip (" .. transCount .. " transizioni native)")
+  else
+    p("  " .. label .. ": " .. #items .. " clip sulla timeline")
+  end
   if #items == 0 then p("  !! " .. label .. " vuoto") end
 end
 p("verifica:")
@@ -2548,13 +2710,13 @@ def cmd_lua(args: argparse.Namespace) -> int:
     audio_cache: Dict[Tuple[str, float], str] = {}
     audio_made = 0
 
-    def prep_sfx(rel_path: str, gain_db: float) -> str:
-        """Applica il gain con ffmpeg: l'API di Resolve non espone il volume dei clip."""
+    def prep_sfx(rel_path: str, gain_db: float, duration: float = 0.0) -> str:
+        """Applica il gain e micro-fade 5ms con ffmpeg: l'API di Resolve non espone il volume dei clip."""
         nonlocal audio_made
-        key = (rel_path, round(float(gain_db), 2))
+        key = (rel_path, round(float(gain_db), 2), round(duration, 3))
         if key in audio_cache:
             return audio_cache[key]
-        if abs(gain_db) < 0.05:
+        if abs(gain_db) < 0.05 and duration <= 0:
             audio_cache[key] = rel_path
             return rel_path
         src = ROOT / rel_path
@@ -2562,7 +2724,11 @@ def cmd_lua(args: argparse.Namespace) -> int:
             die("sfx non trovato: %s" % src)
         name = "%s_g%+d.wav" % (slugify(Path(rel_path).stem), int(round(gain_db)))
         out = adir / name
-        run(["ffmpeg", "-y", "-i", str(src), "-af", "volume=%.2fdB" % gain_db,
+        af = "volume=%.2fdB" % gain_db
+        if duration > 0.01:
+            fade_out_start = max(0.0, duration - 0.005)
+            af += ",afade=t=in:st=0:d=0.005,afade=t=out:st=%.3f:d=0.005" % fade_out_start
+        run(["ffmpeg", "-y", "-i", str(src), "-af", af,
              "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2", str(out)])
         audio_made += 1
         audio_cache[key] = rel(out)
@@ -2638,12 +2804,13 @@ def cmd_lua(args: argparse.Namespace) -> int:
                 continue
             at = start + float(cue.get("at") or 0.0)
             gain = float(cue.get("gain_db") or 0.0)
+            sfx_dur = float(sfx_durations.get(f) or 0.0)
             sfx_cues.append({
-                "file": prep_sfx(f, gain),
+                "file": prep_sfx(f, gain, sfx_dur),
                 "at": round(at, 3),
                 "slot": sid,
                 "gain": gain,
-                "duration": float(sfx_durations.get(f) or 0.0),
+                "duration": sfx_dur,
             })
 
     bgm = shotlist.get("bgm")
@@ -2686,6 +2853,28 @@ def cmd_lua(args: argparse.Namespace) -> int:
     if vo == default_vo and norm_vo.exists():
         vo = rel(norm_vo)
 
+    # BGM ducking se richiesto (dopo che vo e definito)
+    bgm_duck_lua = None
+    bgm = shotlist.get("bgm")
+    if bgm and bgm.get("duck"):
+        duck_db = float(bgm.get("duck_db", -9))
+        ratio = max(2.0, min(12.0, abs(duck_db) * 0.9))
+        bgm_duck_path = adir / "bgm_duck.wav"
+        try:
+            run(["ffmpeg", "-y",
+                 "-i", str(ROOT / bgm["file"]),
+                 "-i", str(ROOT / vo),
+                 "-filter_complex",
+                 f"[0:a]volume={bgm.get('gain_db',0)}dB,aloop=loop=-1:size=2e9,atrim=0:{total}[bgm];"
+                 f"[1:a]aresample=48000,apad=whole_dur={total},atrim=0:{total}[voice];"
+                 f"[bgm][voice]sidechaincompress=threshold=0.05:ratio={ratio}:attack=20:release=350:makeup=1[out]",
+                 "-map", "[out]", "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "2", str(bgm_duck_path)])
+            bgm_duck_lua = {"file": rel(bgm_duck_path)}
+            log("  BGM ducking generato: %s (ratio=%.1f)" % (bgm_duck_path.name, ratio))
+        except Exception as e:
+            log("  [warn] BGM ducking fallito: %s, uso mix standard" % e)
+            bgm_duck_lua = None
+
     data = {
         "project": slug,
         "timeline": "%s_v1" % slug,
@@ -2698,8 +2887,13 @@ def cmd_lua(args: argparse.Namespace) -> int:
         "slots": slots_lua,
         "sfx": sfx_cues,
         "bgm": bgm_lua,
+        "bgm_duck": bgm_duck_lua,
         "captions": captions_lua,
         "transitions": transitions_lua,
+        "native_transitions": shotlist.get("native_transitions", False),
+        "audio": shotlist.get("audio", {}),
+        "animation_mode": shotlist.get("animation_mode", "baked"),
+        "transition_handle": shotlist.get("transition_handle", 0.6),
     }
 
     header = [
